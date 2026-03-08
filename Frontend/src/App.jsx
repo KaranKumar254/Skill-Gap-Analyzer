@@ -1,231 +1,772 @@
-import { useState, useRef, createContext, useContext } from "react";
+import { useState, useRef, useEffect, createContext, useContext } from "react";
+
+/* ─────────────────────────────────────────────────────────────
+   SESSION
+───────────────────────────────────────────────────────────── */
+const getSessionId = () => {
+  let id = localStorage.getItem("sg_session");
+  if (!id) {
+    id = "sg_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("sg_session", id);
+  }
+  return id;
+};
+
+/* ─────────────────────────────────────────────────────────────
+   SKILL NOTES  (shown when user taps "View Notes")
+───────────────────────────────────────────────────────────── */
+const SKILL_NOTES = {
+  "React":           "React is a JavaScript UI library by Meta. Key topics: JSX syntax, useState & useEffect hooks, props vs state, component lifecycle, conditional rendering, lists & keys, React Router for navigation. Build projects: todo app → weather app → full CRUD app. Interview focus: virtual DOM, reconciliation algorithm, rules of hooks.",
+  "Next.js":         "Next.js adds SSR, SSG & ISR on top of React. Key topics: file-based routing, getServerSideProps vs getStaticProps vs getStaticPaths, API routes, Image optimisation, App Router (Next 13+), middleware. Essential for SEO-critical & production full-stack React apps.",
+  "Vue.js":          "Vue is a progressive frontend framework. Key topics: Options API vs Composition API, v-bind / v-model directives, computed properties, watchers, Vue Router, Pinia for state management. Popular in Asian tech markets and startups.",
+  "Angular":         "Angular is a full TypeScript-based framework by Google. Key topics: NgModules, components, dependency injection (IoC), RxJS observables, reactive forms, Angular Router, HttpClient. Heavily used in enterprise applications. TypeScript knowledge is mandatory first.",
+  "TypeScript":      "TypeScript adds static typing to JavaScript. Key topics: type annotations, interfaces vs type aliases, generics, union & intersection types, enums, and utility types (Partial, Pick, Omit, Record). Start by converting a plain JS project to TS. Required at most mid/senior frontend positions.",
+  "JavaScript":      "JavaScript is the core web language. Must know: closures, hoisting, event loop & call stack, promises & async/await, prototype chain, ES6+ (destructuring, spread/rest, arrow functions, modules), DOM manipulation, Fetch API. Practice LeetCode Easy–Medium to sharpen logic.",
+  "Node.js":         "Node.js runs JavaScript on the server using an event-driven, non-blocking I/O model. Key topics: npm/package.json, core modules (fs, path, http, events), building REST APIs with Express, middleware pattern, error handling, environment variables with dotenv.",
+  "Express":         "Express is the #1 Node.js web framework. Key topics: routing, middleware stack (cors, morgan, body-parser), RESTful API design, error-handling middleware, database connections (MongoDB/PostgreSQL), JWT authentication, file uploads with Multer.",
+  "Python":          "Python is the #1 language for data science, ML & scripting. Key topics: data types, list comprehensions, functions, classes & OOP, file I/O, virtual environments, pip. For backend: Flask/FastAPI. For data: NumPy, Pandas, Matplotlib, Seaborn.",
+  "Django":          "Django is Python's batteries-included web framework. Key topics: MTV architecture, ORM (models + migrations), views, URL routing, Jinja2 templates, Django REST Framework (DRF) for APIs, built-in authentication & admin panel.",
+  "Flask":           "Flask is a lightweight Python web framework ideal for APIs & microservices. Key topics: routes, request/response objects, Jinja2 templates, SQLAlchemy ORM, Blueprint for modularity, Flask-JWT for auth. More flexible than Django but needs more manual setup.",
+  "FastAPI":         "FastAPI is Python's fastest async framework. Built on Pydantic & Starlette. Key topics: path/query parameters, request body, dependency injection, OAuth2/JWT, background tasks, auto-generated Swagger & ReDoc documentation.",
+  "Machine Learning":"ML core: supervised vs unsupervised learning, regression, classification, clustering, overfitting/underfitting, bias-variance tradeoff, train/test/validation split, cross-validation, evaluation metrics (accuracy, precision, recall, F1, AUC-ROC). Libraries: scikit-learn for classical ML, TensorFlow/PyTorch for deep learning.",
+  "Deep Learning":   "Deep learning builds multi-layer neural networks. Key topics: perceptrons, activation functions (ReLU/sigmoid/softmax), backpropagation, CNNs (image tasks), RNNs/LSTMs (sequences), Transformers (NLP/vision), batch normalisation, dropout, transfer learning.",
+  "TensorFlow":      "TensorFlow 2.x uses Keras as its high-level API. Key topics: Sequential vs Functional model API, common layers (Dense, Conv2D, LSTM, Dropout), model compilation (optimizer, loss, metrics), training loops, callbacks (ModelCheckpoint, EarlyStopping), saving & loading models.",
+  "Docker":          "Docker containerises apps for consistent environments. Must know: Dockerfile commands (FROM, RUN, COPY, CMD, EXPOSE, ENV), building & tagging images, running containers with port mapping, volumes, environment variables, and Docker Compose for multi-container setups. Interview question: explain image vs container.",
+  "Kubernetes":      "Kubernetes (K8s) orchestrates Docker containers at scale. Key resources: Pods, Deployments, Services, ConfigMaps, Secrets, Ingress, PersistentVolumes, HPA (auto-scaling). Learn kubectl commands, rolling updates, namespaces & RBAC. Practice locally with Minikube or kind.",
+  "AWS":             "AWS is the #1 cloud platform. For most dev roles focus on: EC2 (VMs), S3 (object storage), RDS (managed DB), Lambda (serverless), IAM (permissions), VPC (networking), CloudWatch (monitoring), API Gateway. Start with AWS Cloud Practitioner (CLF-C02) certification.",
+  "GCP":             "Google Cloud Platform dominates in ML & data engineering. Key services: Compute Engine, Cloud Run (serverless containers), Cloud Storage, BigQuery (data warehouse), Pub/Sub (messaging), Firestore, Vertex AI. Free $300 credit for new users. Start with Google Cloud Skills Boost.",
+  "Azure":           "Azure is dominant in enterprise companies. Key services: Azure VMs, App Service (web hosting), Azure Functions (serverless), Azure SQL, Cosmos DB, Blob Storage, Active Directory, AKS (managed K8s). AZ-900 (Azure Fundamentals) certification is a strong differentiator for enterprise roles.",
+  "CI/CD":           "CI/CD automates build → test → deploy. CI: auto-run tests on every commit. CD: auto-deploy passing builds. Tools: GitHub Actions (most common), Jenkins, GitLab CI, CircleCI. Learn to write a YAML pipeline that installs deps → runs tests → builds a Docker image → deploys to cloud.",
+  "SQL":             "SQL is essential for almost every backend/data role. Must know: SELECT with WHERE, GROUP BY, HAVING, ORDER BY; all JOIN types (INNER/LEFT/RIGHT/FULL/CROSS); subqueries; window functions (ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD); indexes & query optimisation. Practice 30+ LeetCode SQL problems.",
+  "PostgreSQL":      "PostgreSQL is the most feature-rich open-source relational database. Beyond standard SQL: JSONB columns, CTEs (WITH clauses), full-text search, pl/pgSQL stored functions, triggers, EXPLAIN ANALYZE for query tuning, and PgBouncer for connection pooling.",
+  "MongoDB":         "MongoDB is a NoSQL document database. Key topics: documents vs collections, BSON format, CRUD operations, aggregation pipeline ($match, $group, $lookup, $project), indexing, schema design patterns (embedding vs referencing), Mongoose ODM for Node.js.",
+  "Redis":           "Redis is an in-memory data store for caching, sessions, pub/sub & rate limiting. Key data structures: strings, hashes, lists, sets, sorted sets. Important features: TTL (key expiration), Redis Pub/Sub, Redis Streams. Classic interview question: design an API rate limiter using Redis.",
+  "GraphQL":         "GraphQL is a query language & runtime for APIs — a flexible alternative to REST. Key concepts: schema definition (types, queries, mutations, subscriptions), resolvers, DataLoader to solve the N+1 problem, Apollo Server (backend) & Apollo Client (frontend), fragments, and variables.",
+  "Linux":           "Linux is the OS of almost every production server. Essential commands: ls/cd/pwd/mkdir/rm/cp/mv, cat/grep/awk/sed for text processing, chmod/chown for permissions, ps/kill/top for processes, ssh/scp for remote access, cron for scheduling, systemctl for services, and piping (|). Learn Bash scripting for automation.",
+  "Git":             "Git is non-negotiable for every developer. Must know: init/clone, add/commit/push/pull, branching (checkout -b, switch), merging vs rebasing, resolving merge conflicts, stash, reset (soft/mixed/hard) vs revert, cherry-pick, and pull requests. Interview: explain Git Flow / trunk-based development.",
+  "System Design":   "System Design is tested at mid/senior interviews. Topics: horizontal vs vertical scaling, load balancing, caching (Redis, CDN), database choices (SQL vs NoSQL, sharding, replication), message queues (Kafka, RabbitMQ), microservices vs monolith, rate limiting, CAP theorem. Practice designing: URL shortener, Twitter feed, Netflix, WhatsApp.",
+  "Data Structures": "DSA is in almost every coding interview. Master: Arrays, Strings, Linked Lists, Stacks & Queues, HashMaps & HashSets, Binary Trees & BST, BFS & DFS, Heaps/Priority Queues, Graphs, and basic Dynamic Programming (memoisation, tabulation). Aim for 50+ LeetCode Easy/Medium before any interview.",
+  "Spring Boot":     "Spring Boot is the standard Java enterprise backend framework. Key topics: dependency injection with @Component/@Service/@Repository/@Controller, building REST APIs, JPA/Hibernate ORM with @Entity, Spring Security for auth (JWT), application.properties/yaml configuration, Maven or Gradle build tools.",
+  "React Native":    "React Native builds native iOS & Android apps using JavaScript & React. Key topics: core components (View, Text, Image, ScrollView, FlatList, TextInput), StyleSheet API, React Navigation for routing, state management (Context/Redux/Zustand), platform-specific code (Platform.OS), and Expo for rapid development.",
+  "Flutter":         "Flutter builds cross-platform apps (iOS, Android, Web, Desktop) from a single Dart codebase. Key topics: Stateless vs Stateful widgets, widget tree & build method, layout widgets (Row/Column/Stack/Container), state management (setState, Provider, Riverpod, Bloc), async with Future & Stream.",
+  "Tailwind CSS":    "Tailwind is a utility-first CSS framework — style directly in HTML using class names. Key utility groups: spacing (p-/m-), sizing (w-/h-/max-w-), flexbox (flex/justify-/items-), grid, typography (text-/font-/leading-), colours, responsive prefixes (sm:/md:/lg:/xl:), and dark mode variant.",
+  "NLP":             "NLP covers: text classification, sentiment analysis, NER (named entity recognition), machine translation, summarisation & QA. Key concepts: tokenisation, word embeddings (Word2Vec, GloVe), attention mechanism, Transformer architecture (BERT, GPT, T5), and fine-tuning pretrained models on HuggingFace.",
+  "Golang":          "Go (Golang) is designed for performance, simplicity & concurrency. Key features: goroutines (ultra-lightweight threads), channels for communication, select statement, interfaces (implicit), error handling with multiple return values, structs with methods, defer, and the rich standard library.",
+  "Rust":            "Rust is a systems language focused on memory safety without a garbage collector. Core concepts: ownership rules, borrowing & references, lifetimes, enums with rich pattern matching, traits (like interfaces), the borrow checker. Steep learning curve but most loved language on Stack Overflow for 9 years running.",
+  "Microservices":   "Microservices architecture splits an app into small independent services. Key patterns: API Gateway, Service Discovery, Circuit Breaker (resilience), Saga pattern (distributed transactions), event-driven communication (Kafka/RabbitMQ), distributed tracing (Jaeger/Zipkin). Usually deployed with Docker + Kubernetes.",
+  "Blockchain":      "Blockchain is a distributed, immutable ledger. Key concepts: blocks, chains, consensus mechanisms (PoW/PoS), public/private keys, wallets, smart contracts (self-executing code on-chain), gas fees on Ethereum. For development: learn Solidity, Hardhat/Foundry, and ethers.js/web3.js.",
+  "Solidity":        "Solidity is Ethereum's smart contract language. Key topics: data types, state variables, functions (view/pure/payable), modifiers, events, mappings, structs, inheritance, interfaces, error handling (require/revert/assert), and security patterns (reentrancy guard, access control). Use Hardhat or Remix IDE.",
+  "Redux":           "Redux is a predictable state container for JS apps. Key concepts: single source of truth (store), pure reducer functions, actions & action creators, dispatch, selectors, and Redux Toolkit (modern Redux with createSlice, createAsyncThunk). Understand when Redux is overkill vs necessary.",
+  "Jest":            "Jest is the #1 JavaScript testing framework. Key topics: writing test suites (describe/it/test), matchers (expect().toBe/.toEqual/.toThrow), mocking (jest.fn(), jest.mock()), async testing (async/await in tests), code coverage reports, and snapshot testing for UI components.",
+};
 
 const AppCtx = createContext(null);
-const useApp = () => useContext(AppCtx);
+const useApp  = () => useContext(AppCtx);
 
-const styles = `
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-:root{
-  --bg:#0b0b12;--surface:#111119;--surface2:#18181f;--border:#252530;
-  --text:#e6e6f0;--muted:#6b6b90;--accent:#f0a500;--purple:#7c5cfc;
-  --green:#22c55e;--red:#ef4444;--r:12px;
+/* ─────────────────────────────────────────────────────────────
+   CSS  — injected into <head> via useEffect so body[data-theme]
+          selectors work on the actual document body
+───────────────────────────────────────────────────────────── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ══ RESET ══ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+/* ══ THEMES ══ */
+:root{--dur:.3s}
+
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:15px;line-height:1.65;
+  overflow-x:hidden;
+  transition:background var(--dur),color var(--dur);
+  min-height:100vh;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.65;min-height:100vh;}
-h1,h2,h3,h4{font-family:'Syne',sans-serif;}
 
-/* NAV */
-.nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,11,18,.95);backdrop-filter:blur(14px);z-index:999;}
-.nav-brand{display:flex;align-items:center;gap:.5rem;cursor:pointer;font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:var(--accent);text-decoration:none;}
-.nav-links{display:flex;align-items:center;gap:1.5rem;}
-.nav-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.9rem;transition:color .2s;padding:.25rem 0;}
-.nav-btn:hover,.nav-btn.active{color:var(--text);}
-.nav-cta{background:var(--accent);color:#000;border:none;border-radius:8px;padding:.45rem 1.1rem;font-weight:700;font-family:'Syne',sans-serif;font-size:.82rem;cursor:pointer;transition:opacity .2s;}
-.nav-cta:hover{opacity:.85;}
+/* DARK */
+body[data-theme="dark"]{
+  --bg:#07071a; --bg2:#0e0e28;
+  --sur:#111130; --sur2:#181840; --sur3:#1f1f52;
+  --bdr:#252560; --bdr2:#3a3a9a;
+  --txt:#eeeeff; --txt2:#9898cc; --txt3:#55558a;
+  --acc:#7c6fff; --acc2:#ff6b9d;
+  --cyan:#00d4ff; --grn:#00ffaa; --red:#ff4d7a; --ylw:#ffc700;
+  --glo:rgba(124,111,255,.28); --glo2:rgba(0,212,255,.16);
+  --shd:0 24px 64px rgba(0,0,0,.55); --shdsm:0 4px 20px rgba(0,0,0,.4);
+  --nav:rgba(7,7,26,.9);
+  --inp:#0e0e28;
+  color:#eeeeff;
+  background:#07071a;
+}
 
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:.5rem;border:none;border-radius:var(--r);padding:.75rem 1.75rem;font-weight:700;font-family:'Syne',sans-serif;font-size:.95rem;cursor:pointer;transition:transform .15s,opacity .2s;}
-.btn:hover{transform:translateY(-1px);opacity:.9;}
-.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
-.btn-y{background:var(--accent);color:#000;}
-.btn-g{background:transparent;color:var(--muted);border:1px solid var(--border);}
-.btn-g:hover{color:var(--text);}
-.btn-d{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,.3);}
+/* LIGHT */
+body[data-theme="light"]{
+  --bg:#f4f3ff; --bg2:#eceaff;
+  --sur:#ffffff; --sur2:#f1efff; --sur3:#e6e3ff;
+  --bdr:#d8d4ff; --bdr2:#b0a8ff;
+  --txt:#140f3a; --txt2:#443e78; --txt3:#8e8ab8;
+  --acc:#5c4fff; --acc2:#ff4580;
+  --cyan:#007aaa; --grn:#00875e; --red:#c8284e; --ylw:#a87000;
+  --glo:rgba(92,79,255,.16); --glo2:rgba(0,122,170,.12);
+  --shd:0 8px 40px rgba(92,79,255,.14); --shdsm:0 2px 14px rgba(92,79,255,.1);
+  --nav:rgba(244,243,255,.95);
+  --inp:#ffffff;
+  color:#140f3a;
+  background:#f4f3ff;
+}
 
-/* LANDING */
-.landing{max-width:1080px;margin:0 auto;padding:0 2rem 6rem;}
-.hero{text-align:center;padding:5rem 0 4rem;}
-.hero-pill{display:inline-block;background:rgba(240,165,0,.1);color:var(--accent);border:1px solid rgba(240,165,0,.3);border-radius:999px;padding:.3rem 1rem;font-size:.78rem;font-weight:600;margin-bottom:1.8rem;letter-spacing:.04em;text-transform:uppercase;}
-.hero h1{font-size:clamp(2.4rem,5.5vw,4rem);font-weight:800;line-height:1.08;letter-spacing:-.02em;margin-bottom:1.4rem;}
-.hero h1 em{font-style:normal;color:var(--accent);}
-.hero>p{color:var(--muted);font-size:1.05rem;max-width:500px;margin:0 auto 2.2rem;}
-.hero-actions{display:flex;flex-direction:column;align-items:center;gap:.6rem;}
-.hero-note{color:var(--muted);font-size:.78rem;}
-.preview-card{margin:3.5rem auto 0;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem 2.5rem;display:flex;align-items:center;justify-content:center;gap:2.5rem;max-width:560px;}
-.preview-ring{position:relative;width:110px;height:110px;flex-shrink:0;}
-.preview-ring svg{width:100%;height:100%;}
-.preview-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.preview-ring-label strong{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--accent);}
-.preview-ring-label span{color:var(--muted);font-size:.7rem;}
-.preview-chips{display:flex;flex-wrap:wrap;gap:.45rem;max-width:240px;}
-.chip{padding:.28rem .75rem;border-radius:999px;font-size:.78rem;font-weight:600;}
-.cg{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.25);}
-.cr{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.25);}
-.sec-title{font-size:1.7rem;font-weight:800;text-align:center;margin-bottom:2.5rem;}
-.how{padding:4rem 0;}
-.steps{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
-.step{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem 2rem;min-width:150px;text-align:center;}
-.step-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:.4rem;}
-.step p{color:var(--muted);font-size:.85rem;}
-.features{padding:4rem 0;}
-.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.25rem;}
-.feat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.6rem;transition:border-color .2s;}
-.feat-card:hover{border-color:var(--purple);}
-.feat-icon{font-size:1.6rem;margin-bottom:.7rem;}
-.feat-card h3{font-size:.95rem;margin-bottom:.35rem;}
-.feat-card p{color:var(--muted);font-size:.83rem;line-height:1.5;}
-.cta-strip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3rem;text-align:center;margin:2rem 0;display:flex;flex-direction:column;align-items:center;gap:1.25rem;}
-.cta-strip h2{font-size:2rem;}
+/* ══ BACKGROUND ══ */
+.bg-fixed{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(110px)}
+body[data-theme="dark"]  .blob1{width:700px;height:700px;top:-200px;left:-120px;background:radial-gradient(circle,rgba(124,111,255,.22),transparent 70%);animation:bm 14s ease-in-out infinite}
+body[data-theme="dark"]  .blob2{width:550px;height:550px;bottom:-100px;right:-90px;background:radial-gradient(circle,rgba(0,212,255,.14),transparent 70%);animation:bm 17s ease-in-out infinite reverse}
+body[data-theme="dark"]  .blob3{width:400px;height:400px;top:45%;left:38%;background:radial-gradient(circle,rgba(255,107,157,.07),transparent 70%);animation:bm 11s ease-in-out infinite 5s}
+body[data-theme="light"] .blob1{width:700px;height:700px;top:-200px;left:-120px;background:radial-gradient(circle,rgba(92,79,255,.1),transparent 70%);animation:bm 14s ease-in-out infinite}
+body[data-theme="light"] .blob2{width:550px;height:550px;bottom:-100px;right:-90px;background:radial-gradient(circle,rgba(0,122,170,.08),transparent 70%);animation:bm 17s ease-in-out infinite reverse}
+body[data-theme="light"] .blob3{width:400px;height:400px;top:45%;left:38%;background:radial-gradient(circle,rgba(255,69,128,.05),transparent 70%);animation:bm 11s ease-in-out infinite 5s}
+
+.bg-grid{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px);
+  background-size:64px 64px;opacity:.3;
+}
+
+@keyframes bm{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(35px,-25px) scale(1.06)}66%{transform:translate(-25px,18px) scale(.95)}}
+
+/* ══ ANIMATIONS ══ */
+@keyframes fadeUp  {from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn  {from{opacity:0}to{opacity:1}}
+@keyframes slideIn {from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scaleIn {from{opacity:0;transform:scale(.75)}to{opacity:1;transform:scale(1)}}
+@keyframes spin    {to{transform:rotate(360deg)}}
+@keyframes shimmer {0%{background-position:-300% center}100%{background-position:300% center}}
+@keyframes pulse   {0%,100%{box-shadow:0 0 14px var(--glo)}50%{box-shadow:0 0 36px var(--glo),0 0 56px var(--glo2)}}
+@keyframes float   {0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+/* ══ NAV ══ */
+nav.nav{
+  position:sticky;top:0;z-index:999;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 2.5rem;
+  background:var(--nav);backdrop-filter:blur(28px) saturate(2);
+  border-bottom:1px solid var(--bdr);
+  transition:background var(--dur),border-color var(--dur);
+}
+nav.nav::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--acc),var(--cyan),transparent);opacity:.45;
+}
+.nbrand{display:flex;align-items:center;gap:.6rem;cursor:pointer;text-decoration:none}
+.nlogo{
+  width:34px;height:34px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--acc),var(--cyan));
+  display:flex;align-items:center;justify-content:center;font-size:1.05rem;
+  animation:pulse 3s ease-in-out infinite;
+}
+.nword{font-family:'Sora',sans-serif;font-size:1.08rem;font-weight:800;color:var(--txt)}
+.nword em{font-style:normal;color:var(--acc)}
+.nright{display:flex;align-items:center;gap:.7rem}
+.nlinks{display:flex;gap:.1rem}
+.nbtn{
+  background:none;border:none;color:var(--txt2);
+  cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:.88rem;font-weight:500;
+  padding:.42rem .9rem;border-radius:9px;transition:all .2s;
+}
+.nbtn:hover,.nbtn.on{color:var(--txt);background:var(--sur2)}
+.nbtn.on{color:var(--acc)}
+
+/* THEME TOGGLE */
+.tog{
+  width:52px;height:27px;border-radius:999px;
+  background:var(--sur2);border:1.5px solid var(--bdr2);
+  cursor:pointer;position:relative;flex-shrink:0;
+  transition:all .3s;
+}
+.tog:hover{border-color:var(--acc);box-shadow:0 0 10px var(--glo)}
+.togknob{
+  position:absolute;top:2.5px;width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,var(--acc),var(--cyan));
+  display:flex;align-items:center;justify-content:center;font-size:.6rem;
+  transition:left .3s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 2px 8px var(--glo);
+}
+body[data-theme="dark"]  .togknob{left:2.5px}
+body[data-theme="light"] .togknob{left:27.5px}
+
+.ncta{
+  background:linear-gradient(135deg,var(--acc),var(--cyan));color:#fff;
+  border:none;border-radius:10px;padding:.5rem 1.15rem;
+  font-family:'Sora',sans-serif;font-weight:700;font-size:.83rem;
+  cursor:pointer;transition:all .22s;box-shadow:0 4px 16px var(--glo);
+}
+.ncta:hover{transform:translateY(-2px);box-shadow:0 8px 24px var(--glo)}
+
+/* ══ PAGE WRAPPER ══ */
+.pz{position:relative;z-index:1}
+.pw{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:3rem 2rem 5rem}
+
+/* ══ BUTTONS ══ */
+.btn{
+  display:inline-flex;align-items:center;gap:.45rem;
+  border:none;border-radius:12px;padding:.75rem 1.6rem;
+  font-family:'Sora',sans-serif;font-weight:700;font-size:.9rem;
+  cursor:pointer;transition:all .22s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-p{background:linear-gradient(135deg,var(--acc),var(--cyan));color:#fff;box-shadow:0 4px 18px var(--glo)}
+.btn-p:hover{box-shadow:0 8px 30px var(--glo)}
+.btn-o{background:var(--sur2);color:var(--txt2);border:1.5px solid var(--bdr)}
+.btn-o:hover{color:var(--txt);border-color:var(--acc);background:var(--sur3)}
+.btn-d{background:transparent;color:var(--red);border:1.5px solid var(--red)}
+.btn-d:hover{background:rgba(255,77,122,.08)}
+
+/* ══ HERO ══ */
+.hero{max-width:1160px;margin:0 auto;padding:7rem 2rem 5rem;text-align:center}
+.hbadge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:999px;
+  padding:.35rem 1rem;font-size:.71rem;font-weight:600;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:1.8rem;
+  box-shadow:var(--shdsm);animation:fadeUp .45s ease both;
+  transition:background var(--dur),border-color var(--dur);
+}
+.hdot{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn);animation:pulse 2s infinite}
+
+.hero h1{
+  font-family:'Sora',sans-serif;
+  font-size:clamp(2.7rem,5.5vw,5rem);
+  font-weight:800;line-height:1.05;letter-spacing:-.03em;margin-bottom:1.4rem;
+}
+.hl{display:block;animation:fadeUp .45s ease both}
+.hl:nth-child(1){animation-delay:.04s}
+.hl:nth-child(2){animation-delay:.1s}
+.hl:nth-child(3){animation-delay:.16s}
+.hgrad{
+  background:linear-gradient(90deg,var(--acc),var(--cyan),var(--acc2),var(--acc));
+  background-size:300% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:shimmer 4s linear infinite;
+}
+.hsub{color:var(--txt2);font-size:1.03rem;max-width:520px;margin:0 auto 2.4rem;line-height:1.8;animation:fadeUp .45s .2s ease both}
+.hacts{display:flex;flex-direction:column;align-items:center;gap:.75rem;animation:fadeUp .45s .25s ease both}
+.hacts-row{display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center}
+.ctamain{
+  background:linear-gradient(135deg,var(--acc),var(--cyan));color:#fff;
+  border:none;border-radius:14px;padding:1rem 2.4rem;
+  font-family:'Sora',sans-serif;font-weight:800;font-size:1.03rem;
+  cursor:pointer;transition:all .25s;box-shadow:0 6px 26px var(--glo);
+  display:flex;align-items:center;gap:.5rem;
+}
+.ctamain:hover{transform:translateY(-3px);box-shadow:0 12px 40px var(--glo)}
+.ctasec{
+  background:var(--sur);color:var(--txt2);border:1.5px solid var(--bdr);
+  border-radius:14px;padding:1rem 1.75rem;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:.94rem;
+  cursor:pointer;transition:all .25s;
+  display:flex;align-items:center;gap:.45rem;
+}
+.ctasec:hover{border-color:var(--acc);color:var(--txt);transform:translateY(-2px)}
+.trust{color:var(--txt3);font-size:.76rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;justify-content:center}
+.tck{color:var(--grn);font-weight:700}
+
+/* HERO MOCKUP */
+.hvisual{margin:4rem auto 0;max-width:760px;position:relative;animation:fadeUp .65s .32s ease both}
+.mock{
+  background:var(--sur);border:1.5px solid var(--bdr);
+  border-radius:22px;overflow:hidden;box-shadow:var(--shd);
+  transition:background var(--dur),border-color var(--dur);
+}
+.mockbar{
+  display:flex;align-items:center;gap:.5rem;padding:.8rem 1.15rem;
+  border-bottom:1px solid var(--bdr);background:var(--sur2);
+  transition:background var(--dur),border-color var(--dur);
+}
+.mdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.murl{
+  flex:1;text-align:center;font-family:'JetBrains Mono',monospace;
+  font-size:.67rem;color:var(--txt3);background:var(--sur3);
+  border-radius:5px;padding:.17rem .7rem;
+  transition:background var(--dur);
+}
+.mockbody{padding:1.6rem}
+.msrow{display:flex;align-items:center;gap:1.75rem;margin-bottom:1.4rem}
+.mnum{
+  font-family:'JetBrains Mono',monospace;font-size:3.4rem;font-weight:700;line-height:1;
+  background:linear-gradient(135deg,var(--acc),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.mlbl{color:var(--txt3);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-top:.15rem}
+.mbars{flex:1}
+.mbr{display:flex;align-items:center;gap:.65rem;margin-bottom:.42rem}
+.mbl{font-size:.72rem;color:var(--txt2);min-width:68px}
+.mbt{flex:1;height:5px;background:var(--sur3);border-radius:99px;overflow:hidden;transition:background var(--dur)}
+.mbf{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc),var(--cyan))}
+.mbp{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--txt3);min-width:26px;text-align:right}
+.mchips{display:flex;flex-wrap:wrap;gap:.35rem}
+.mc{padding:.22rem .68rem;border-radius:999px;font-size:.72rem;font-weight:600}
+.mcg{background:rgba(0,255,170,.08);color:var(--grn);border:1px solid rgba(0,255,170,.2)}
+.mcr{background:rgba(255,77,122,.08);color:var(--red);border:1px solid rgba(255,77,122,.2)}
+
+/* FLOAT BADGES */
+.fbg{
+  position:absolute;background:var(--sur);border:1.5px solid var(--bdr);
+  border-radius:14px;padding:.62rem .95rem;box-shadow:var(--shd);
+  font-size:.76rem;font-weight:600;
+  transition:background var(--dur),border-color var(--dur);
+}
+.fbg1{bottom:24px;left:-16px;animation:float 4s ease-in-out infinite}
+.fbg2{top:16px;right:-12px;animation:float 4s ease-in-out infinite;animation-delay:-2s}
+.fbi{font-size:1.1rem;margin-bottom:.12rem}
+.fbv{color:var(--acc);font-weight:700}
+.fbs{color:var(--txt3);font-size:.65rem}
+
+/* STATS BAND */
+.sband{position:relative;z-index:1;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);transition:border-color var(--dur)}
+.sinner{max-width:1160px;margin:0 auto;display:flex;justify-content:space-around;flex-wrap:wrap;padding:2.2rem 2rem;gap:2rem}
+.sbox{text-align:center}
+.sn{font-family:'JetBrains Mono',monospace;font-size:1.95rem;font-weight:700;background:linear-gradient(135deg,var(--acc),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sl{color:var(--txt3);font-size:.76rem;margin-top:.28rem;letter-spacing:.04em}
+
+/* SECTION */
+.sec{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:5rem 2rem}
+.stag{font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--acc);text-transform:uppercase;letter-spacing:.18em;display:block;margin-bottom:.45rem}
+.sh{font-family:'Sora',sans-serif;font-size:clamp(1.85rem,3vw,2.45rem);font-weight:800;letter-spacing:-.025em;margin-bottom:.55rem}
+.sp{color:var(--txt2);font-size:.97rem;max-width:470px;line-height:1.75}
+
+/* STEP CARDS */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.15rem;margin-top:2.8rem}
+.sc{
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;padding:1.7rem;
+  position:relative;overflow:hidden;transition:all .28s;
+  transition:background var(--dur),border-color var(--dur),transform .28s,box-shadow .28s;
+}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--acc),var(--cyan));transform:scaleX(0);transition:transform .3s}
+.sc:hover{border-color:var(--bdr2);transform:translateY(-5px);box-shadow:var(--shd)}
+.sc:hover::before{transform:scaleX(1)}
+.scn{font-family:'JetBrains Mono',monospace;font-size:1.9rem;font-weight:700;color:var(--acc);opacity:.18;line-height:1;margin-bottom:.5rem}
+.sci{font-size:1.65rem;display:block;margin-bottom:.6rem}
+.sc h3{font-family:'Sora',sans-serif;font-size:.91rem;font-weight:700;margin-bottom:.35rem}
+.sc p{color:var(--txt2);font-size:.81rem;line-height:1.65}
+
+/* FEATURE CARDS */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.15rem;margin-top:2.8rem}
+.fc{background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;padding:1.7rem;transition:all .28s}
+.fc:hover{border-color:var(--bdr2);transform:translateY(-4px);box-shadow:var(--shd)}
+.fiw{width:44px;height:44px;border-radius:11px;background:var(--sur2);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.95rem;transition:background var(--dur),border-color var(--dur)}
+.fc h3{font-family:'Sora',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.32rem}
+.fc p{color:var(--txt2);font-size:.81rem;line-height:1.65}
+
+/* CTA BAND */
+.cband{position:relative;z-index:1;max-width:1100px;margin:0 auto 5rem;padding:0 2rem}
+.cinner{
+  background:var(--sur2);border:1.5px solid var(--bdr);border-radius:26px;
+  padding:4.5rem 3rem;text-align:center;position:relative;overflow:hidden;
+  box-shadow:var(--shd);transition:background var(--dur),border-color var(--dur);
+}
+.cinner::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--acc),var(--cyan),transparent)}
+.cinner h2{font-family:'Sora',sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-.025em;margin-bottom:.65rem}
+.cinner p{color:var(--txt2);margin-bottom:1.9rem;font-size:.98rem}
 
 /* FOOTER */
-.footer{border-top:1px solid var(--border);padding:3rem 2.5rem 1.5rem;}
-.footer-inner{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;gap:2rem;flex-wrap:wrap;margin-bottom:2rem;}
-.footer-brand p{color:var(--muted);font-size:.82rem;margin-top:.4rem;max-width:260px;}
-.footer-cols{display:flex;gap:3rem;}
-.footer-col{display:flex;flex-direction:column;gap:.55rem;}
-.footer-col h4{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.2rem;}
-.footer-col button,.footer-col a{background:none;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.85rem;cursor:pointer;text-align:left;text-decoration:none;transition:color .2s;padding:0;}
-.footer-col button:hover,.footer-col a:hover{color:var(--accent);}
-.footer-bottom{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;padding-top:1.25rem;border-top:1px solid var(--border);color:var(--muted);font-size:.75rem;}
-.footer-powered{color:var(--purple);}
+.foot{position:relative;z-index:1;border-top:1px solid var(--bdr);padding:3.5rem 2.5rem 2rem;transition:border-color var(--dur)}
+.footin{max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;gap:2.5rem;flex-wrap:wrap;margin-bottom:1.9rem}
+.flr{display:flex;align-items:center;gap:.52rem;margin-bottom:.45rem}
+.fli{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:.8rem}
+.fln{font-family:'Sora',sans-serif;font-size:.98rem;font-weight:800;background:linear-gradient(135deg,var(--acc),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.fdesc{color:var(--txt3);font-size:.81rem;max-width:230px;line-height:1.6}
+.fmade{margin-top:.8rem;font-size:.77rem;color:var(--txt3);display:flex;align-items:center;gap:.3rem}
+.fmade strong{color:var(--acc);font-weight:700}
+.fcols{display:flex;gap:3.5rem}
+.fcol{display:flex;flex-direction:column;gap:.52rem}
+.fcol h4{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--txt3);text-transform:uppercase;letter-spacing:.14em;margin-bottom:.28rem}
+.fcol button,.fcol a{background:none;border:none;color:var(--txt2);font-family:'Plus Jakarta Sans',sans-serif;font-size:.84rem;cursor:pointer;text-align:left;text-decoration:none;transition:color .2s;padding:0}
+.fcol button:hover,.fcol a:hover{color:var(--acc)}
+.footbot{max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding-top:1.4rem;border-top:1px solid var(--bdr);color:var(--txt3);font-size:.73rem;flex-wrap:wrap;gap:.5rem;transition:border-color var(--dur)}
+.fpow{display:flex;align-items:center;gap:.4rem;color:var(--acc);font-weight:600}
 
-/* ANALYZE PAGE */
-.analyze-page{max-width:1200px;margin:0 auto;padding:3rem 2rem 5rem;}
-.page-header{text-align:center;margin-bottom:2.5rem;}
-.page-header h1{font-size:2rem;margin-bottom:.35rem;}
-.page-header p{color:var(--muted);}
-.error-bar{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red);border-radius:var(--r);padding:.7rem 1.2rem;margin-bottom:1.5rem;text-align:center;font-size:.88rem;}
-.input-grid{display:grid;grid-template-columns:1fr 48px 1fr;align-items:start;}
-.input-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+/* ══ ANALYZE PAGE ══ */
+.phdr{text-align:center;margin-bottom:2.8rem;animation:fadeUp .45s ease both}
+.phdr h1{font-family:'Sora',sans-serif;font-size:2.15rem;font-weight:800;letter-spacing:-.025em;margin-bottom:.38rem}
+.phdr p{color:var(--txt2)}
+.ptag{display:block;font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--acc);text-transform:uppercase;letter-spacing:.14em;margin-bottom:.42rem}
+.ebar{background:rgba(255,77,122,.08);border:1.5px solid rgba(255,77,122,.22);color:var(--red);border-radius:11px;padding:.75rem 1.1rem;margin-bottom:1.4rem;font-size:.87rem;animation:slideIn .3s ease}
 
-/* PANEL HEADER WITH TABS */
-.panel-head{display:flex;align-items:center;gap:.5rem;padding:.85rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap;}
-.panel-head strong{font-family:'Syne',sans-serif;font-size:.88rem;margin-right:.25rem;}
-.tab-btns{display:flex;gap:.3rem;margin-left:auto;}
-.tab-btn{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:.25rem .65rem;font-size:.72rem;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;transition:all .2s;white-space:nowrap;}
-.tab-btn:hover{color:var(--text);border-color:var(--muted);}
-.tab-btn.active{background:var(--accent);color:#000;border-color:var(--accent);}
+/* INPUT GRID */
+.igrid{display:grid;grid-template-columns:1fr 50px 1fr;align-items:start;animation:fadeUp .45s .1s ease both}
+.ipanel{background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;overflow:hidden;transition:border-color .25s,box-shadow .25s,background var(--dur)}
+.ipanel:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--glo)}
+.phd{
+  display:flex;align-items:center;gap:.48rem;padding:.8rem 1.1rem;
+  border-bottom:1px solid var(--bdr);background:var(--sur2);flex-wrap:wrap;
+  transition:background var(--dur),border-color var(--dur);
+}
+.phd strong{font-family:'Sora',sans-serif;font-size:.86rem;font-weight:700}
+.tbts{display:flex;gap:.25rem;margin-left:auto}
+.tbt{
+  background:transparent;color:var(--txt3);border:1px solid var(--bdr);border-radius:7px;
+  padding:.2rem .58rem;font-size:.69rem;font-weight:600;
+  font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .2s;
+}
+.tbt:hover{color:var(--txt2);border-color:var(--bdr2)}
+.tbt.on{background:linear-gradient(135deg,var(--acc),var(--cyan));color:#fff;border-color:transparent}
+.txa{
+  width:100%;background:var(--inp);border:none;outline:none;
+  color:var(--txt);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.86rem;line-height:1.75;padding:1.15rem;resize:vertical;min-height:420px;
+  transition:background var(--dur),color var(--dur);
+}
+.txa::placeholder{color:var(--txt3)}
+.cntrow{text-align:right;color:var(--txt3);font-size:.67rem;padding:.28rem .85rem;border-top:1px solid var(--bdr);font-family:'JetBrains Mono',monospace;transition:border-color var(--dur)}
+.upzone{
+  border:2px dashed var(--bdr2);border-radius:13px;padding:3rem 1.4rem;
+  text-align:center;cursor:pointer;transition:all .22s;margin:1.1rem;
+}
+.upzone:hover{border-color:var(--acc);background:rgba(92,79,255,.03)}
+.upico{font-size:2.4rem;margin-bottom:.65rem}
+.upzone h4{font-size:.88rem;font-weight:700;margin-bottom:.28rem}
+.upzone p{color:var(--txt3);font-size:.75rem}
+.fprev{margin:1.1rem;background:var(--sur2);border-radius:11px;padding:.95rem;transition:background var(--dur)}
+.fprev img{width:100%;max-height:230px;object-fit:contain;border-radius:7px;margin-bottom:.65rem;display:block}
+.finfo{display:flex;align-items:center;gap:.65rem;margin-bottom:.65rem}
+.fico{font-size:1.9rem;flex-shrink:0}
+.fname{font-weight:600;font-size:.86rem}
+.fmeta{color:var(--txt3);font-size:.73rem}
+.facts{display:flex;gap:.45rem}
+.fbtn{border-radius:7px;padding:.28rem .75rem;font-size:.72rem;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-weight:500;transition:all .2s}
+.fbtnrm{background:rgba(255,77,122,.09);color:var(--red);border:1px solid rgba(255,77,122,.22)}
+.fbtnrp{background:var(--sur3);color:var(--txt2);border:1px solid var(--bdr)}
 
-/* TEXTAREA */
-.text-area{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.85rem;line-height:1.7;padding:1.2rem;resize:vertical;min-height:400px;}
-.text-area::placeholder{color:var(--border);}
-.char-row{text-align:right;color:var(--muted);font-size:.72rem;padding:.3rem .9rem;border-top:1px solid var(--border);}
+.vscol{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.45rem;padding:.9rem .7rem;min-height:180px}
+.vsline{width:1px;flex:1;background:var(--bdr)}
+.vspill{font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--acc);background:var(--sur2);border:1.5px solid var(--bdr);border-radius:7px;padding:.28rem .45rem;transition:background var(--dur),border-color var(--dur)}
 
-/* UPLOAD ZONE */
-.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:3rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s, background .2s;margin:1.2rem;}
-.upload-zone:hover{border-color:var(--accent);background:rgba(240,165,0,.03);}
-.upload-icon{font-size:2.2rem;margin-bottom:.75rem;}
-.upload-zone h4{font-size:.92rem;margin-bottom:.35rem;color:var(--text);}
-.upload-zone p{color:var(--muted);font-size:.78rem;}
+.afoot{display:flex;flex-direction:column;align-items:center;gap:.7rem;margin-top:2.4rem;animation:fadeUp .45s .2s ease both}
+.anote{color:var(--txt3);font-size:.77rem}
+.anote em{font-style:normal;color:var(--cyan);font-weight:600}
+.spinner{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
 
-/* FILE PREVIEW */
-.file-preview{margin:1.2rem;background:var(--surface2);border-radius:10px;padding:1.1rem;}
-.file-preview img{width:100%;max-height:260px;object-fit:contain;border-radius:8px;margin-bottom:.75rem;display:block;}
-.file-info{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;}
-.file-icon{font-size:2rem;flex-shrink:0;}
-.file-name{font-weight:600;font-size:.88rem;margin-bottom:.15rem;}
-.file-meta{color:var(--muted);font-size:.75rem;}
-.file-actions{display:flex;gap:.5rem;}
-.fbtn{border-radius:7px;padding:.3rem .8rem;font-size:.75rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
-.fbtn-remove{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);}
-.fbtn-replace{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
-.fbtn-replace:hover{color:var(--text);}
+/* ══ RESULTS ══ */
+.rtop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2.4rem;animation:fadeUp .45s ease both}
+.rtop h1{font-family:'Sora',sans-serif;font-size:1.95rem;font-weight:800;letter-spacing:-.025em;margin-bottom:.28rem}
+.rtop p{color:var(--txt2);font-size:.88rem}
 
-/* VS DIVIDER */
-.vs-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;padding:1rem .75rem;min-height:200px;}
-.vs-line{width:1px;flex:1;background:var(--border);}
-.vs-text{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;color:var(--muted);background:var(--bg);padding:.3rem;}
+/* SCORE CARD */
+.scard{
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:24px;padding:2.4rem;
+  margin-bottom:1.7rem;display:grid;grid-template-columns:auto 1fr;gap:2.4rem;align-items:center;
+  position:relative;overflow:hidden;box-shadow:var(--shd);animation:fadeUp .45s .1s ease both;
+  transition:background var(--dur),border-color var(--dur);
+}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--acc),var(--cyan),transparent)}
+.scardglow{position:absolute;top:-40px;right:-40px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,var(--glo),transparent 70%);pointer-events:none}
+.ringwrap{position:relative;display:inline-block}
+.ringwrap svg{display:block}
+.ringctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rpct{font-family:'JetBrains Mono',monospace;font-size:1.75rem;font-weight:700;line-height:1;animation:scaleIn .6s .3s ease both}
+.rlbl{color:var(--txt3);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.verdict{display:inline-flex;align-items:center;gap:.38rem;padding:.28rem .85rem;border-radius:999px;font-size:.76rem;font-weight:700;margin-top:.7rem}
+.vg{background:rgba(0,255,170,.09);color:var(--grn);border:1px solid rgba(0,255,170,.2)}
+.vy{background:rgba(255,199,0,.09);color:var(--ylw);border:1px solid rgba(255,199,0,.2)}
+.vr{background:rgba(255,77,122,.09);color:var(--red);border:1px solid rgba(255,77,122,.2)}
+.smry h3{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--txt3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem}
+.smry p{color:var(--txt);line-height:1.8;font-size:.9rem}
 
-.analyze-foot{display:flex;flex-direction:column;align-items:center;gap:.6rem;margin-top:2rem;}
-.analyze-note{color:var(--muted);font-size:.78rem;}
-.spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:rot .7s linear infinite;}
-@keyframes rot{to{transform:rotate(360deg);}}
+/* SKILLS ROW */
+.skrow{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.7rem;animation:fadeUp .45s .2s ease both}
+.skbox{background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;padding:1.45rem;box-shadow:var(--shdsm);transition:background var(--dur),border-color var(--dur)}
+.skboxhd{display:flex;align-items:center;gap:.48rem;font-family:'Sora',sans-serif;font-weight:700;font-size:.88rem;margin-bottom:1rem}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dotg{background:var(--grn);box-shadow:0 0 8px var(--grn)}
+.dotr{background:var(--red);box-shadow:0 0 8px var(--red)}
+.skcnt{margin-left:auto;background:var(--sur2);border-radius:999px;padding:.09rem .52rem;font-size:.7rem;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.tags{display:flex;flex-wrap:wrap;gap:.35rem}
+.tag{padding:.25rem .76rem;border-radius:999px;font-size:.76rem;font-weight:500}
+.tagg{background:rgba(0,255,170,.07);color:var(--grn);border:1px solid rgba(0,255,170,.18)}
+.tagr{background:rgba(255,77,122,.07);color:var(--red);border:1px solid rgba(255,77,122,.18)}
 
-/* RESULTS */
-.results-page{max-width:1080px;margin:0 auto;padding:3rem 2rem 5rem;}
-.results-topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;}
-.results-topbar h1{font-size:1.9rem;margin-bottom:.3rem;}
-.results-topbar p{color:var(--muted);font-size:.9rem;}
-.score-row{display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;margin-bottom:2rem;}
-.ring-wrap{position:relative;display:inline-block;}
-.ring-wrap svg{display:block;}
-.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.ring-center strong{font-family:'Syne',sans-serif;font-size:1.55rem;font-weight:800;}
-.ring-center span{color:var(--muted);font-size:.68rem;}
-.verdict-pill{display:inline-flex;align-items:center;padding:.3rem .9rem;border-radius:999px;font-size:.8rem;font-weight:600;margin-top:.75rem;}
-.v-green{background:rgba(34,197,94,.1);color:var(--green);}
-.v-yellow{background:rgba(240,165,0,.1);color:var(--accent);}
-.v-red{background:rgba(239,68,68,.1);color:var(--red);}
-.summary-box h3{font-size:.88rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.07em;}
-.summary-box p{color:var(--text);line-height:1.7;font-size:.95rem;}
-.skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:2.5rem;}
-.skill-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.4rem;}
-.skill-panel-head{display:flex;align-items:center;gap:.55rem;font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700;margin-bottom:1rem;}
-.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-.dot-g{background:var(--green);}
-.dot-r{background:var(--red);}
-.count-pill{margin-left:auto;background:var(--surface2);border-radius:999px;padding:.1rem .55rem;font-size:.75rem;color:var(--muted);}
-.skill-tags{display:flex;flex-wrap:wrap;gap:.45rem;}
-.stag{padding:.3rem .8rem;border-radius:999px;font-size:.8rem;font-weight:500;}
-.stag-g{background:rgba(34,197,94,.08);color:var(--green);border:1px solid rgba(34,197,94,.2);}
-.stag-r{background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2);}
-.resources-section{margin-bottom:2.5rem;}
-.resources-section h2{font-size:1.4rem;margin-bottom:.4rem;}
-.resources-section>p{color:var(--muted);font-size:.88rem;margin-bottom:1.4rem;}
-.res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.1rem;}
-.res-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.2rem;transition:border-color .2s;}
-.res-card:hover{border-color:var(--purple);}
-.res-skill{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);margin-bottom:.75rem;font-size:.9rem;}
-.res-links{list-style:none;display:flex;flex-direction:column;gap:.45rem;}
-.res-links a{color:var(--text);text-decoration:none;font-size:.83rem;display:flex;align-items:center;gap:.45rem;transition:color .2s;}
-.res-links a:hover{color:var(--purple);}
-.res-type{color:var(--muted);font-size:.72rem;}
-.save-bar{margin-top:2.5rem;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;display:flex;align-items:center;justify-content:space-between;}
-.save-bar p{color:var(--muted);font-size:.9rem;}
+/* ══ RESOURCE SECTION ══ */
+.rsec{margin-bottom:1.7rem;animation:fadeUp .45s .3s ease both}
+.rsechd{margin-bottom:1.2rem}
+.rsechd h2{font-family:'Sora',sans-serif;font-size:1.38rem;font-weight:800;margin-bottom:.2rem}
+.rsechd p{color:var(--txt2);font-size:.85rem}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(305px,1fr));gap:1.2rem}
 
-/* HISTORY */
-.history-page{max-width:820px;margin:0 auto;padding:3rem 2rem 5rem;}
-.history-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;}
-.history-topbar h1{font-size:1.9rem;}
-.history-list{display:flex;flex-direction:column;gap:.9rem;}
-.h-card{display:flex;align-items:center;gap:1.25rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.2rem 1.4rem;transition:background .2s;}
-.h-card:hover{background:var(--surface2);}
-.h-score{font-family:'Syne',sans-serif;font-size:1.55rem;font-weight:800;min-width:58px;text-align:center;}
-.h-info{flex:1;}
-.h-job{font-weight:600;font-size:.92rem;margin-bottom:.2rem;}
-.h-date{color:var(--muted);font-size:.78rem;margin-bottom:.25rem;}
-.h-missing{color:var(--red);font-size:.8rem;}
-.h-actions{display:flex;gap:.5rem;}
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:6rem 2rem;text-align:center;}
-.empty-icon{font-size:2.8rem;}
-.empty h3{font-size:1.2rem;}
-.empty p{color:var(--muted);font-size:.9rem;max-width:300px;}
+/* RESOURCE CARD */
+.rcard{
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;overflow:hidden;
+  transition:border-color .25s,transform .25s,box-shadow .25s,background var(--dur);
+  box-shadow:var(--shdsm);
+}
+.rcard:hover{border-color:var(--bdr2);transform:translateY(-3px);box-shadow:var(--shd)}
+.rhead{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.82rem 1.15rem;border-bottom:1px solid var(--bdr);
+  background:var(--sur2);transition:background var(--dur),border-color var(--dur);
+}
+.rskill{
+  font-family:'Sora',sans-serif;font-weight:800;font-size:.9rem;
+  background:linear-gradient(135deg,var(--acc),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.rbadge{
+  font-size:.6rem;font-weight:700;
+  background:rgba(255,77,122,.09);color:var(--red);
+  border:1px solid rgba(255,77,122,.2);
+  border-radius:999px;padding:.13rem .5rem;
+  font-family:'JetBrains Mono',monospace;flex-shrink:0;
+}
 
-/* RESPONSIVE */
+/* NOTES ACCORDION */
+.ntog{
+  width:100%;display:flex;align-items:center;gap:.55rem;
+  padding:.68rem 1.15rem;background:none;border:none;
+  border-bottom:1px solid var(--bdr);
+  color:var(--txt2);cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.81rem;font-weight:600;
+  transition:background .2s,color .2s,border-color var(--dur);text-align:left;
+}
+.ntog:hover{background:var(--sur3);color:var(--txt)}
+.ntico{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(255,199,0,.25),rgba(255,140,0,.18));
+  display:flex;align-items:center;justify-content:center;font-size:.75rem;
+}
+.ntlbl{flex:1}
+.ntarr{color:var(--txt3);font-size:.68rem;margin-left:auto;transition:transform .25s}
+.ntarr.open{transform:rotate(180deg)}
+
+.nbody{
+  padding:.9rem 1.15rem 1rem;
+  border-bottom:1px solid var(--bdr);
+  animation:fadeIn .2s ease;
+  transition:background var(--dur),border-color var(--dur);
+}
+body[data-theme="dark"]  .nbody{background:rgba(255,199,0,.025)}
+body[data-theme="light"] .nbody{background:rgba(255,180,0,.04)}
+.nbody p{color:var(--txt2);font-size:.81rem;line-height:1.8;margin:0}
+
+/* LINKS */
+.rlinks{list-style:none}
+.rli a{
+  display:flex;align-items:center;gap:.55rem;color:var(--txt2);
+  text-decoration:none;font-size:.81rem;padding:.53rem 1.15rem;
+  border-bottom:1px solid var(--bdr);transition:background .2s,color .2s,border-color var(--dur);
+}
+.rli:last-child a{border-bottom:none}
+.rli a:hover{color:var(--txt);background:var(--sur2)}
+.lbdg{
+  display:inline-flex;align-items:center;gap:.2rem;
+  font-size:.59rem;font-weight:700;border-radius:6px;padding:.12rem .4rem;
+  flex-shrink:0;font-family:'JetBrains Mono',monospace;
+}
+.lyt {background:rgba(255,60,60,.1);  color:#ff4444;border:1px solid rgba(255,60,60,.2)}
+.ldoc{background:rgba(0,212,255,.1);  color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.lnt {background:rgba(255,199,0,.12); color:var(--ylw);border:1px solid rgba(255,199,0,.2)}
+.lcrs{background:rgba(0,255,170,.1);  color:var(--grn);border:1px solid rgba(0,255,170,.2)}
+.lttl{flex:1;line-height:1.35}
+.larr{color:var(--txt3);font-size:.66rem;flex-shrink:0;transition:transform .2s,color .2s}
+.rli a:hover .larr{transform:translateX(3px);color:var(--acc)}
+
+/* SAVE BAR */
+.svbar{
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:20px;
+  padding:1.65rem 1.9rem;display:flex;align-items:center;justify-content:space-between;
+  animation:fadeUp .45s .4s ease both;box-shadow:var(--shdsm);
+  transition:background var(--dur),border-color var(--dur);
+}
+.svbar p{color:var(--txt2);font-size:.88rem}
+.svbar strong{color:var(--grn)}
+.svbtns{display:flex;gap:.7rem}
+
+/* ══ HISTORY ══ */
+.htop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.9rem;animation:fadeUp .45s ease both}
+.htop h1{font-family:'Sora',sans-serif;font-size:1.95rem;font-weight:800;letter-spacing:-.025em}
+.hlist{display:flex;flex-direction:column;gap:.7rem}
+.hcard{
+  display:flex;align-items:center;gap:1.2rem;
+  background:var(--sur);border:1.5px solid var(--bdr);
+  border-radius:17px;padding:1.15rem 1.35rem;
+  transition:all .22s;box-shadow:var(--shdsm);
+  animation:slideIn .4s ease both;
+}
+.hcard:hover{border-color:var(--bdr2);transform:translateX(5px);background:var(--sur2)}
+.hscore{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:700;min-width:58px;text-align:center}
+.hinfo{flex:1}
+.hjob{font-family:'Sora',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:.18rem}
+.hdate{color:var(--txt3);font-size:.72rem;margin-bottom:.2rem;font-family:'JetBrains Mono',monospace}
+.hmiss{color:var(--red);font-size:.77rem}
+.hacts{display:flex;gap:.45rem}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.95rem;padding:7rem 2rem;text-align:center}
+.empty-ico{font-size:2.9rem}
+.empty h3{font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:800}
+.empty p{color:var(--txt2);font-size:.88rem;max-width:290px}
+
+/* ══ RESPONSIVE ══ */
 @media(max-width:768px){
-  .nav{padding:1rem 1.25rem;}
-  .nav-links{gap:.75rem;}
-  .input-grid{grid-template-columns:1fr;}
-  .vs-col{flex-direction:row;min-height:auto;padding:.75rem 0;}
-  .vs-line{width:auto;height:1px;flex:1;}
-  .skills-grid{grid-template-columns:1fr;}
-  .score-row{grid-template-columns:1fr;}
-  .preview-card{flex-direction:column;}
-  .footer-inner{flex-direction:column;}
-  .save-bar{flex-direction:column;gap:1rem;text-align:center;}
-  .tab-btns{margin-left:0;margin-top:.3rem;}
+  nav.nav{padding:.85rem 1.1rem}
+  .igrid{grid-template-columns:1fr}
+  .vscol{flex-direction:row;min-height:auto;padding:.6rem 0}
+  .vsline{width:auto;height:1px;flex:1}
+  .skrow{grid-template-columns:1fr}
+  .scard{grid-template-columns:1fr;text-align:center}
+  .sinner{gap:1.4rem}
+  .footin{flex-direction:column}
+  .svbar{flex-direction:column;gap:.95rem;text-align:center}
+  .rtop{flex-direction:column;gap:.9rem}
+  .hero h1{font-size:2.45rem}
+  .fbg1,.fbg2{display:none}
+  .tbts{margin-left:0;margin-top:.3rem}
+  .cinner{padding:3rem 1.4rem}
+  .cinner h2{font-size:1.75rem}
+  .fcols{gap:2rem}
+  .nlinks{display:none}
 }
 `;
 
-// ── Shared components ────────────────────────────────────────────────────────
-
+/* ─────────────────────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────────────────────── */
 function ScoreRing({ score }) {
-  const r = 54, circ = 2 * Math.PI * r;
+  const r = 56, circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
-  const color = score >= 80 ? "var(--green)" : score >= 55 ? "var(--accent)" : "var(--red)";
+  const id = score >= 80 ? "gg" : score >= 55 ? "gy" : "gr";
+  const col = score >= 80 ? "var(--grn)" : score >= 55 ? "var(--ylw)" : "var(--red)";
+  const [c0, c1] = score >= 80 ? ["#00ffaa","#00d4ff"] : score >= 55 ? ["#ffc700","#ff9500"] : ["#ff4d7a","#ff6b9d"];
   return (
-    <div className="ring-wrap">
-      <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--surface2)" strokeWidth="12"/>
-        <circle cx="70" cy="70" r={r} fill="none" stroke={color} strokeWidth="12"
-          strokeDasharray={circ} strokeDashoffset={offset}
-          strokeLinecap="round" transform="rotate(-90 70 70)"
-          style={{transition:"stroke-dashoffset 1s ease"}}/>
+    <div className="ringwrap">
+      <svg width="148" height="148" viewBox="0 0 148 148">
+        <defs>
+          <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={c0}/><stop offset="100%" stopColor={c1}/>
+          </linearGradient>
+        </defs>
+        <circle cx="74" cy="74" r={r} fill="none" stroke="var(--sur3)" strokeWidth="11"/>
+        <circle cx="74" cy="74" r={r} fill="none" stroke={`url(#${id})`} strokeWidth="11"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          transform="rotate(-90 74 74)"
+          style={{transition:"stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1)"}}/>
       </svg>
-      <div className="ring-center">
-        <strong style={{color}}>{score}%</strong>
-        <span>match</span>
+      <div className="ringctr">
+        <span className="rpct" style={{color:col}}>{score}%</span>
+        <span className="rlbl">match</span>
       </div>
+    </div>
+  );
+}
+
+function ResourceCard({ r }) {
+  const [open, setOpen] = useState(false);
+  const notes = SKILL_NOTES[r.skill] || `${r.skill} is a required skill for this role. Study the official documentation and a beginner video course first, then build a small hands-on project to solidify the concepts.`;
+  const bc = t => t==="youtube"?"lyt":t==="article"?"ldoc":t==="notes"?"lnt":"lcrs";
+  const bl = t => t==="youtube"?"▶ Video":t==="article"?"📖 Docs":t==="notes"?"📝 Notes":"🎓 Course";
+  return (
+    <div className="rcard">
+      <div className="rhead">
+        <span className="rskill">{r.skill}</span>
+        <span className="rbadge">Missing</span>
+      </div>
+
+      {/* NOTES TOGGLE — always shown */}
+      <button className="ntog" onClick={() => setOpen(o => !o)}>
+        <span className="ntico">📝</span>
+        <span className="ntlbl">Study Notes</span>
+        <span className={`ntarr${open ? " open" : ""}`}>▼</span>
+      </button>
+      {open && (
+        <div className="nbody">
+          <p>{notes}</p>
+        </div>
+      )}
+
+      <ul className="rlinks">
+        {r.links?.map((l, i) => (
+          <li className="rli" key={i}>
+            <a href={l.url} target="_blank" rel="noopener noreferrer">
+              <span className={`lbdg ${bc(l.type)}`}>{bl(l.type)}</span>
+              <span className="lttl">{l.title}</span>
+              <span className="larr">→</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InputPanel({ label, icon, text, setText, file, setFile }) {
+  const [tab, setTab]   = useState("paste");
+  const [prev, setPrev] = useState("");
+  const fref = useRef();
+  const handle = f => {
+    if (!f) return;
+    setFile(f);
+    setPrev(f.type.startsWith("image/") ? URL.createObjectURL(f) : "");
+  };
+  const clear = () => { setFile(null); setPrev(""); if (fref.current) fref.current.value = ""; };
+  return (
+    <div className="ipanel">
+      <div className="phd">
+        <span>{icon}</span>
+        <strong>{label}</strong>
+        <div className="tbts">
+          {["paste","pdf","photo"].map(t => (
+            <button key={t} className={`tbt${tab===t?" on":""}`} onClick={() => setTab(t)}>
+              {t==="paste"?"✏️ Paste":t==="pdf"?"📎 PDF":"🖼️ Photo"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "paste" && (
+        <>
+          <textarea className="txa" value={text} onChange={e => setText(e.target.value)}
+            placeholder={label.includes("Resume")
+              ? "Paste your full resume here…\n\nSKILLS\nReact, Node.js, MongoDB\n\nEXPERIENCE\nFrontend Dev @ Startup (2022–2024)\n- Built dashboards with React\n\nEDUCATION\nB.Tech Computer Science, 2022"
+              : "Paste the job description here…\n\nFull Stack Developer\n\nRequirements:\n- 2+ years React experience\n- Node.js & Express backend\n- AWS or Azure cloud\n- Docker & CI/CD pipelines"
+            } rows={18}/>
+          <div className="cntrow">{text.length} chars</div>
+        </>
+      )}
+
+      {(tab === "pdf" || tab === "photo") && (
+        !file
+          ? (
+            <div className="upzone"
+              onClick={() => fref.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); handle(e.dataTransfer.files[0]); }}>
+              <div className="upico">{tab==="photo"?"🖼️":"📎"}</div>
+              <h4>{tab==="photo"?"Click or drag & drop image":"Click or drag & drop PDF"}</h4>
+              <p>{tab==="photo"?"PNG, JPG, WEBP supported":"PDF only · max 10 MB"}</p>
+              <input ref={fref} type="file" accept={tab==="photo"?"image/*":"application/pdf"}
+                style={{display:"none"}} onChange={e => handle(e.target.files[0])}/>
+            </div>
+          ) : (
+            <div className="fprev">
+              {prev && <img src={prev} alt="preview"/>}
+              {!prev && (
+                <div className="finfo">
+                  <div className="fico">📄</div>
+                  <div>
+                    <div className="fname">{file.name}</div>
+                    <div className="fmeta">{(file.size/1024).toFixed(1)} KB · PDF</div>
+                  </div>
+                </div>
+              )}
+              <div className="facts">
+                <button className="fbtn fbtnrm" onClick={clear}>✕ Remove</button>
+                <button className="fbtn fbtnrp" onClick={() => fref.current?.click()}>↺ Replace</button>
+              </div>
+              <input ref={fref} type="file" accept={tab==="photo"?"image/*":"application/pdf"}
+                style={{display:"none"}} onChange={e => handle(e.target.files[0])}/>
+            </div>
+          )
+      )}
     </div>
   );
 }
@@ -233,188 +774,154 @@ function ScoreRing({ score }) {
 function Footer() {
   const { go } = useApp();
   return (
-    <footer className="footer">
-      <div className="footer-inner">
-        <div className="footer-brand">
-          <div style={{fontFamily:"'Syne',sans-serif",fontSize:"1.1rem",fontWeight:800,color:"var(--accent)"}}>⚡ SkillGap</div>
-          <p>Know exactly what's standing between you and your dream job.</p>
+    <footer className="foot">
+      <div className="footin">
+        <div>
+          <div className="flr">
+            <div className="fli">⚡</div>
+            <span className="fln">SkillGap</span>
+          </div>
+          <p className="fdesc">AI-powered skill gap analyzer for fresh graduates & students.</p>
+          <div className="fmade">Made with ❤️ by <strong>Karan Kumar</strong></div>
         </div>
-        <div className="footer-cols">
-          <div className="footer-col">
+        <div className="fcols">
+          <div className="fcol">
             <h4>Product</h4>
             <button onClick={() => go("analyze")}>Analyze Resume</button>
-            <button onClick={() => go("history")}>History</button>
+            <button onClick={() => go("history")}>My History</button>
           </div>
-          <div className="footer-col">
+          <div className="fcol">
             <h4>Info</h4>
             <a href="#">How it works</a>
-            <a href="#">Privacy Policy</a>
+            <a href="#">Privacy</a>
           </div>
         </div>
       </div>
-      <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} SkillGap — Built for students & fresh graduates.</span>
-        <span className="footer-powered">Powered by Claude AI</span>
+      <div className="footbot">
+        <span>© {new Date().getFullYear()} SkillGap by Karan Kumar</span>
+        <div className="fpow">⚡ Powered by Groq AI</div>
       </div>
     </footer>
   );
 }
 
-// ── Input Panel with Paste / PDF / Photo tabs ────────────────────────────────
-
-function InputPanel({ label, icon, text, setText, file, setFile }) {
-  const [tab, setTab]       = useState("paste");
-  const [preview, setPreview] = useState("");
-  const fileRef             = useRef();
-
-  const handleFile = (f) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/") && f.type !== "application/pdf") return;
-    setFile(f);
-    setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : "");
-  };
-
-  const clear = () => {
-    setFile(null);
-    setPreview("");
-    if (fileRef.current) fileRef.current.value = "";
-  };
-
-  const accept = tab === "photo" ? "image/*" : "application/pdf";
-
-  return (
-    <div className="input-panel">
-      {/* Header */}
-      <div className="panel-head">
-        <span>{icon}</span>
-        <strong>{label}</strong>
-        <div className="tab-btns">
-          <button className={`tab-btn ${tab==="paste"?"active":""}`} onClick={() => setTab("paste")}>✏️ Paste</button>
-          <button className={`tab-btn ${tab==="pdf"  ?"active":""}`} onClick={() => setTab("pdf")  }>📎 PDF</button>
-          <button className={`tab-btn ${tab==="photo"?"active":""}`} onClick={() => setTab("photo")}>🖼️ Photo</button>
-        </div>
-      </div>
-
-      {/* Paste tab */}
-      {tab === "paste" && (
-        <>
-          <textarea
-            className="text-area"
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder={label === "Your Resume"
-              ? "Paste your full resume here...\n\nExample:\nJohn Doe | john@email.com\n\nSKILLS\nReact, Node.js, MongoDB, REST APIs, Git\n\nEXPERIENCE\nFrontend Developer @ Startup (2022–2024)\n- Built dashboards with React\n\nEDUCATION\nB.Tech CS, 2022"
-              : "Paste the job description here...\n\nExample:\nSenior Full Stack Developer @ TechCorp\n\nRequirements:\n- 3+ years React\n- Node.js & Express\n- AWS deployment\n- Docker & Kubernetes\n- Redis caching"
-            }
-            rows={18}
-          />
-          <div className="char-row">{text.length} chars</div>
-        </>
-      )}
-
-      {/* PDF / Photo tab */}
-      {(tab === "pdf" || tab === "photo") && (
-        !file ? (
-          <div
-            className="upload-zone"
-            onClick={() => fileRef.current.click()}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-          >
-            <div className="upload-icon">{tab === "photo" ? "🖼️" : "📎"}</div>
-            <h4>{tab === "photo" ? "Click or drag & drop image" : "Click or drag & drop PDF"}</h4>
-            <p>{tab === "photo" ? "PNG, JPG, JPEG supported" : "PDF files only · max 10MB"}</p>
-            <input ref={fileRef} type="file" accept={accept} style={{display:"none"}} onChange={e => handleFile(e.target.files[0])}/>
-          </div>
-        ) : (
-          <div className="file-preview">
-            {preview
-              ? <img src={preview} alt="Uploaded"/>
-              : (
-                <div className="file-info">
-                  <div className="file-icon">📄</div>
-                  <div>
-                    <div className="file-name">{file.name}</div>
-                    <div className="file-meta">{(file.size/1024).toFixed(1)} KB · PDF</div>
-                  </div>
-                </div>
-              )
-            }
-            <div className="file-actions">
-              <button className="fbtn fbtn-remove" onClick={clear}>✕ Remove</button>
-              <button className="fbtn fbtn-replace" onClick={() => fileRef.current.click()}>↺ Replace</button>
-            </div>
-            <input ref={fileRef} type="file" accept={accept} style={{display:"none"}} onChange={e => handleFile(e.target.files[0])}/>
-          </div>
-        )
-      )}
-    </div>
-  );
-}
-
-// ── Pages ────────────────────────────────────────────────────────────────────
-
+/* ─────────────────────────────────────────────────────────────
+   PAGES
+───────────────────────────────────────────────────────────── */
 function LandingPage() {
   const { go } = useApp();
-  const circ = 2 * Math.PI * 42;
-  const features = [
-    {icon:"🔍",title:"Resume Parsing",  desc:"Every skill extracted automatically from your resume."},
-    {icon:"📋",title:"JD Matching",     desc:"Compare against any job description in seconds."},
-    {icon:"📊",title:"Match Score",     desc:"Get a % score showing exactly how well you fit."},
-    {icon:"📚",title:"Free Resources",  desc:"YouTube & course links for every missing skill."},
+  const feats = [
+    {e:"🔍",t:"Smart Parsing",     d:"Every tech skill extracted automatically from your resume."},
+    {e:"📊",t:"Precise Scoring",   d:"AI + keyword blend gives a realistic % match score."},
+    {e:"📝",t:"Study Notes",       d:"Tap any missing skill to read a detailed study guide."},
+    {e:"📚",t:"Free Resources",    d:"YouTube, official docs & cheatsheet links per skill."},
+    {e:"⚡",t:"10-Second Results", d:"Full AI analysis delivered in under 10 seconds."},
+    {e:"💾",t:"History Tracking",  d:"All analyses saved so you can track your progress."},
   ];
   return (
-    <main className="landing">
+    <main className="pz">
       <section className="hero">
-        <div className="hero-pill">Free for students 🎓</div>
-        <h1>Know exactly what's<br/><em>standing between you</em><br/>and your dream job.</h1>
-        <p>Paste your resume + a job description. Get your skill gap analysis in seconds.</p>
-        <div className="hero-actions">
-          <button className="btn btn-y" onClick={() => go("analyze")}>Analyze My Resume →</button>
-          <span className="hero-note">No signup needed · 3 free analyses/month</span>
-        </div>
-        <div className="preview-card">
-          <div className="preview-ring">
-            <svg viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface2)" strokeWidth="8"/>
-              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" strokeWidth="8"
-                strokeDasharray={circ} strokeDashoffset={circ*0.27}
-                strokeLinecap="round" transform="rotate(-90 50 50)"/>
-            </svg>
-            <div className="preview-ring-label"><strong>73%</strong><span>match</span></div>
+        <div className="hbadge"><span className="hdot"/>Free for students · No signup needed</div>
+        <h1>
+          <span className="hl">Know exactly what's</span>
+          <span className="hl hgrad">standing between you</span>
+          <span className="hl">and your dream job.</span>
+        </h1>
+        <p className="hsub">Paste your resume + any job description. Get your match score, skill gaps, personal study notes and free learning resources — in seconds.</p>
+        <div className="hacts">
+          <div className="hacts-row">
+            <button className="ctamain" onClick={() => go("analyze")}>⚡ Analyze My Resume</button>
+            <button className="ctasec"  onClick={() => go("history")}>📂 View History</button>
           </div>
-          <div className="preview-chips">
-            {[["React ✓","cg"],["Node.js ✓","cg"],["MongoDB ✓","cg"],["Docker ✗","cr"],["AWS ✗","cr"],["Redis ✗","cr"]].map(([s,c])=>(
-              <span key={s} className={`chip ${c}`}>{s}</span>
+          <div className="trust">
+            {["No account needed","100% free","PDF & photo upload","Instant results"].map(t => (
+              <span key={t} style={{display:"flex",alignItems:"center",gap:".28rem"}}><span className="tck">✓</span>{t}</span>
             ))}
           </div>
         </div>
-      </section>
 
-      <section className="how">
-        <h2 className="sec-title">How it works</h2>
-        <div className="steps">
-          {[["01","Paste your resume"],["02","Paste the job description"],["03","Get your gap analysis"],["04","Start learning & apply"]].map(([n,l])=>(
-            <div className="step" key={n}><div className="step-num">{n}</div><p>{l}</p></div>
-          ))}
+        <div className="hvisual">
+          <div className="fbg fbg1"><div className="fbi">🎯</div><div className="fbv">3 gaps found</div><div className="fbs">Notes ready</div></div>
+          <div className="fbg fbg2"><div className="fbi">⚡</div><div className="fbv">8.2s</div><div className="fbs">Groq AI</div></div>
+          <div className="mock">
+            <div className="mockbar">
+              <div className="mdot" style={{background:"#ff5f56"}}/>
+              <div className="mdot" style={{background:"#ffbd2e"}}/>
+              <div className="mdot" style={{background:"#27c93f"}}/>
+              <div className="murl">skillgap.app/results</div>
+            </div>
+            <div className="mockbody">
+              <div className="msrow">
+                <div><div className="mnum">73%</div><div className="mlbl">Match Score</div></div>
+                <div className="mbars">
+                  {[["React",92],["Node.js",84],["MongoDB",70],["Docker",28]].map(([s,v]) => (
+                    <div className="mbr" key={s}>
+                      <span className="mbl">{s}</span>
+                      <div className="mbt"><div className="mbf" style={{width:`${v}%`}}/></div>
+                      <span className="mbp">{v}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mchips">
+                {[["React ✓","mcg"],["Node.js ✓","mcg"],["Git ✓","mcg"],["Docker ✗","mcr"],["AWS ✗","mcr"],["Redis ✗","mcr"]].map(([s,c]) => (
+                  <span key={s} className={`mc ${c}`}>{s}</span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="features">
-        <h2 className="sec-title">Everything you need</h2>
-        <div className="feat-grid">
-          {features.map(f=>(
-            <div className="feat-card" key={f.title}>
-              <div className="feat-icon">{f.icon}</div>
-              <h3>{f.title}</h3><p>{f.desc}</p>
+      <div className="sband">
+        <div className="sinner">
+          {[["500+","Analyses done"],["~10s","Avg. speed"],["40+","Skills covered"],["100%","Free forever"]].map(([n,l]) => (
+            <div className="sbox" key={l}><div className="sn">{n}</div><div className="sl">{l}</div></div>
+          ))}
+        </div>
+      </div>
+
+      <section className="sec">
+        <span className="stag">// process</span>
+        <h2 className="sh">How it works</h2>
+        <p className="sp">Four simple steps from resume to personalised study roadmap.</p>
+        <div className="sgrid">
+          {[
+            {n:"01",e:"📄",t:"Upload Resume",       d:"Paste text, upload a PDF, or take a photo."},
+            {n:"02",e:"💼",t:"Add Job Description", d:"Copy the JD from LinkedIn, Naukri, or any site."},
+            {n:"03",e:"🤖",t:"AI Analysis",          d:"Groq AI compares your profile vs the requirements."},
+            {n:"04",e:"🚀",t:"Learn & Apply",         d:"Read study notes + use free resources to close every gap."},
+          ].map(s => (
+            <div className="sc" key={s.n}>
+              <div className="scn">{s.n}</div>
+              <span className="sci">{s.e}</span>
+              <h3>{s.t}</h3><p>{s.d}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <div className="cta-strip">
-        <h2>Ready to close your skill gap?</h2>
-        <button className="btn btn-y" onClick={() => go("analyze")}>Start for Free →</button>
+      <section className="sec" style={{paddingTop:0}}>
+        <span className="stag">// features</span>
+        <h2 className="sh">Everything you need</h2>
+        <p className="sp">All tools to understand and close your skill gaps — completely free.</p>
+        <div className="fgrid">
+          {feats.map(f => (
+            <div className="fc" key={f.t}>
+              <div className="fiw">{f.e}</div>
+              <h3>{f.t}</h3><p>{f.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="cband">
+        <div className="cinner">
+          <span className="stag">// get started</span>
+          <h2>Ready to land your dream job?</h2>
+          <p>Join hundreds of graduates who prepare smarter with SkillGap.</p>
+          <button className="ctamain" style={{margin:"0 auto"}} onClick={() => go("analyze")}>⚡ Start Free Analysis →</button>
+        </div>
       </div>
       <Footer/>
     </main>
@@ -422,55 +929,63 @@ function LandingPage() {
 }
 
 function AnalyzePage() {
-  const { go, setResult }   = useApp();
+  const { go, setResult }           = useApp();
   const [resumeText, setResumeText] = useState("");
-  const [jdText, setJdText]         = useState("");
+  const [jdText,     setJdText]     = useState("");
   const [resumeFile, setResumeFile] = useState(null);
-  const [jdFile, setJdFile]         = useState(null);
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState("");
+  const [jdFile,     setJdFile]     = useState(null);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
 
-  const handleAnalyze = async () => {
-    if (!resumeFile && resumeText.trim().length < 50) { setError("Please paste your resume or upload a file."); return; }
-    if (!jdFile    && jdText.trim().length < 30)      { setError("Please paste the job description or upload a file."); return; }
+  const run = async () => {
+    if (!resumeFile && resumeText.trim().length < 50) { setError("Please paste your resume (min 50 chars) or upload a file."); return; }
+    if (!jdFile    && jdText.trim().length    < 30)  { setError("Please paste the job description or upload a file."); return; }
     setError(""); setLoading(true);
     try {
-      let res, data;
+      const sid = getSessionId();
+      let res;
       if (resumeFile || jdFile) {
         const fd = new FormData();
         resumeFile ? fd.append("resumeFile", resumeFile) : fd.append("resumeText", resumeText);
         jdFile     ? fd.append("jdFile", jdFile)         : fd.append("jobDescription", jdText);
-        res = await fetch("/api/analyze", { method:"POST", body: fd });
+        fd.append("sessionId", sid);
+        res = await fetch("/api/analyze", { method:"POST", body:fd });
       } else {
-        res = await fetch("/api/analyze", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ resumeText, jobDescription: jdText }) });
+        res = await fetch("/api/analyze", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({ resumeText, jobDescription:jdText, sessionId:sid })
+        });
       }
-      data = await res.json();
+      const txt = await res.text();
+      if (!txt?.trim()) throw new Error("Backend returned empty response — check your terminal.");
+      let data;
+      try { data = JSON.parse(txt); } catch { throw new Error("Backend error: " + txt.slice(0,200)); }
       if (!res.ok) throw new Error(data.message || "Server error");
       setResult(data); go("results");
-    } catch(e) {
-      setError(e.message || "Something went wrong. Please try again.");
-    } finally { setLoading(false); }
+    } catch(e) { setError(e.message || "Something went wrong. Please try again."); }
+    finally    { setLoading(false); }
   };
 
   return (
-    <main className="analyze-page">
-      <div className="page-header">
+    <main className="pw">
+      <div className="phdr">
+        <span className="ptag">// ai analysis</span>
         <h1>Analyze Your Resume</h1>
-        <p>Paste text, upload a PDF, or take a photo of your resume</p>
+        <p>Paste text, upload PDF, or photo — gap analysis in seconds</p>
       </div>
-      {error && <div className="error-bar">{error}</div>}
-      <div className="input-grid">
+      {error && <div className="ebar">⚠️ {error}</div>}
+      <div className="igrid">
         <InputPanel label="Your Resume"     icon="📄" text={resumeText} setText={setResumeText} file={resumeFile} setFile={setResumeFile}/>
-        <div className="vs-col">
-          <div className="vs-line"/><span className="vs-text">VS</span><div className="vs-line"/>
+        <div className="vscol">
+          <div className="vsline"/><span className="vspill">VS</span><div className="vsline"/>
         </div>
-        <InputPanel label="Job Description" icon="💼" text={jdText}     setText={setJdText}     file={jdFile}    setFile={setJdFile}/>
+        <InputPanel label="Job Description" icon="💼" text={jdText} setText={setJdText} file={jdFile} setFile={setJdFile}/>
       </div>
-      <div className="analyze-foot">
-        <button className="btn btn-y" style={{padding:"1rem 2.5rem",fontSize:"1rem"}} onClick={handleAnalyze} disabled={loading}>
-          {loading ? <><span className="spin"/> Analyzing…</> : "⚡ Analyze My Gaps"}
+      <div className="afoot">
+        <button className="ctamain" style={{fontSize:"1.02rem",padding:"1.05rem 3rem"}} onClick={run} disabled={loading}>
+          {loading ? <><span className="spinner"/> Analyzing…</> : "⚡ Analyze My Skill Gaps"}
         </button>
-        <span className="analyze-note">Takes ~10 seconds · Powered by Claude AI</span>
+        <span className="anote">Takes ~10 seconds · Powered by <em>Groq AI</em></span>
       </div>
       <Footer/>
     </main>
@@ -480,59 +995,68 @@ function AnalyzePage() {
 function ResultsPage() {
   const { go, result } = useApp();
   if (!result) return (
-    <div className="empty">
-      <div className="empty-icon">📊</div><h3>No analysis yet</h3>
-      <p>Run an analysis to see your results here.</p>
-      <button className="btn btn-y" onClick={() => go("analyze")}>Analyze Resume</button>
-    </div>
+    <main className="pw">
+      <div className="empty">
+        <div className="empty-ico">📊</div>
+        <h3>No analysis yet</h3>
+        <p>Run an analysis to see your results here.</p>
+        <button className="btn btn-p" onClick={() => go("analyze")}>Analyze Resume</button>
+      </div>
+    </main>
   );
-  const { matchScore, matchedSkills, missingSkills, resources, summary } = result;
-  const vc = matchScore>=80?"v-green":matchScore>=55?"v-yellow":"v-red";
-  const vl = matchScore>=80?"🔥 Strong Match":matchScore>=55?"👍 Good Start":"📈 Skill Up Needed";
+  const { matchScore, matchedSkills=[], missingSkills=[], resources=[], summary="" } = result;
+  const vc = matchScore>=80?"vg":matchScore>=55?"vy":"vr";
+  const vl = matchScore>=80?"🔥 Strong Match":matchScore>=55?"👍 Good Start":"📈 Needs Work";
   return (
-    <main className="results-page">
-      <div className="results-topbar">
-        <div><h1>Your Gap Analysis</h1><p>Here's how you stack up against the job</p></div>
-        <button className="btn btn-g" onClick={() => go("analyze")}>← New Analysis</button>
+    <main className="pw">
+      <div className="rtop">
+        <div>
+          <span className="ptag">// results</span>
+          <h1>Your Gap Analysis</h1>
+          <p>Here's how you stack up against the job description</p>
+        </div>
+        <button className="btn btn-o" onClick={() => go("analyze")}>← New Analysis</button>
       </div>
-      <div className="score-row">
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:".5rem"}}>
+
+      <div className="scard">
+        <div className="scardglow"/>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:".45rem"}}>
           <ScoreRing score={matchScore}/>
-          <span className={`verdict-pill ${vc}`}>{vl}</span>
+          <span className={`verdict ${vc}`}>{vl}</span>
         </div>
-        <div className="summary-box"><h3>AI Summary</h3><p>{summary}</p></div>
-      </div>
-      <div className="skills-grid">
-        <div className="skill-panel">
-          <div className="skill-panel-head"><span className="dot dot-g"/>Matched Skills<span className="count-pill">{matchedSkills.length}</span></div>
-          <div className="skill-tags">{matchedSkills.map(s=><span key={s} className="stag stag-g">✓ {s}</span>)}</div>
-        </div>
-        <div className="skill-panel">
-          <div className="skill-panel-head"><span className="dot dot-r"/>Missing Skills<span className="count-pill">{missingSkills.length}</span></div>
-          <div className="skill-tags">{missingSkills.map(s=><span key={s} className="stag stag-r">✗ {s}</span>)}</div>
+        <div className="smry">
+          <h3>AI Summary</h3>
+          <p>{summary}</p>
         </div>
       </div>
-      <div className="resources-section">
-        <h2>📚 Learning Resources</h2>
-        <p>Free YouTube videos & courses to close your gaps</p>
-        <div className="res-grid">
-          {resources?.map(r=>(
-            <div className="res-card" key={r.skill}>
-              <div className="res-skill">{r.skill}</div>
-              <ul className="res-links">
-                {r.links?.map((l,i)=>(
-                  <li key={i}><a href={l.url} target="_blank" rel="noopener noreferrer">
-                    <span className="res-type">{l.type==="youtube"?"▶":"📖"}</span>{l.title}
-                  </a></li>
-                ))}
-              </ul>
-            </div>
-          ))}
+
+      <div className="skrow">
+        <div className="skbox">
+          <div className="skboxhd"><span className="dot dotg"/>Matched Skills<span className="skcnt">{matchedSkills.length}</span></div>
+          <div className="tags">{matchedSkills.map(s => <span key={s} className="tag tagg">✓ {s}</span>)}</div>
+        </div>
+        <div className="skbox">
+          <div className="skboxhd"><span className="dot dotr"/>Missing Skills<span className="skcnt">{missingSkills.length}</span></div>
+          <div className="tags">{missingSkills.map(s => <span key={s} className="tag tagr">✗ {s}</span>)}</div>
         </div>
       </div>
-      <div className="save-bar">
-        <p>Save this analysis to track your progress over time</p>
-        <button className="btn btn-y">Save to History</button>
+
+      <div className="rsec">
+        <div className="rsechd">
+          <h2>📚 Learning Resources</h2>
+          <p>Tap <strong>Study Notes</strong> on any card to read what to learn · Plus free videos, docs & cheatsheets</p>
+        </div>
+        <div className="rgrid">
+          {resources.map(r => <ResourceCard key={r.skill} r={r}/>)}
+        </div>
+      </div>
+
+      <div className="svbar">
+        <p><strong>✅ Auto-saved!</strong> This analysis is in your history.</p>
+        <div className="svbtns">
+          <button className="btn btn-o" onClick={() => go("history")}>View History →</button>
+          <button className="btn btn-p" onClick={() => go("analyze")}>New Analysis</button>
+        </div>
       </div>
       <Footer/>
     </main>
@@ -540,58 +1064,128 @@ function ResultsPage() {
 }
 
 function HistoryPage() {
-  const { go } = useApp();
-  const history = [
-    {_id:"1",createdAt:"2026-03-01",matchScore:73,jobTitle:"Frontend Developer @ Zepto",     missingSkills:["Docker","AWS","Redis"]},
-    {_id:"2",createdAt:"2026-02-25",matchScore:55,jobTitle:"Full Stack Engineer @ Razorpay", missingSkills:["Kubernetes","Go","gRPC"]},
-    {_id:"3",createdAt:"2026-02-18",matchScore:88,jobTitle:"React Developer @ Freshworks",   missingSkills:["Storybook"]},
-  ];
-  const sc = s => s>=80?"var(--green)":s>=55?"var(--accent)":"var(--red)";
+  const { go, setResult }     = useApp();
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`/api/history?sessionId=${getSessionId()}`);
+        setHistory(await r.json());
+      } catch { setError("Could not load history."); }
+      finally  { setLoading(false); }
+    })();
+  }, []);
+
+  const del = async id => {
+    try { await fetch(`/api/history/${id}`, {method:"DELETE"}); setHistory(p => p.filter(h => h._id !== id)); }
+    catch { setError("Could not delete."); }
+  };
+
+  const sc = s => s>=80?"var(--grn)":s>=55?"var(--ylw)":"var(--red)";
   const fd = d => new Date(d).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+
   return (
-    <main className="history-page">
-      <div className="history-topbar">
-        <h1>Analysis History</h1>
-        <button className="btn btn-y" onClick={() => go("analyze")}>+ New Analysis</button>
+    <main className="pw">
+      <div className="htop">
+        <div><span className="ptag">// history</span><h1>Analysis History</h1></div>
+        <button className="btn btn-p" onClick={() => go("analyze")}>+ New Analysis</button>
       </div>
-      <div className="history-list">
-        {history.map(item=>(
-          <div className="h-card" key={item._id}>
-            <div className="h-score" style={{color:sc(item.matchScore)}}>{item.matchScore}%</div>
-            <div className="h-info">
-              <div className="h-job">{item.jobTitle}</div>
-              <div className="h-date">{fd(item.createdAt)}</div>
-              <div className="h-missing">Missing: {item.missingSkills.join(", ")}</div>
+      {loading && <div className="empty"><div className="empty-ico">⏳</div><p>Loading…</p></div>}
+      {error   && <div className="empty"><div className="empty-ico">⚠️</div><p>{error}</p></div>}
+      {!loading && !error && history.length === 0 && (
+        <div className="empty">
+          <div className="empty-ico">🕘</div>
+          <h3>No analyses yet</h3>
+          <p>Run your first analysis to see it here.</p>
+          <button className="btn btn-p" onClick={() => go("analyze")}>Analyze Resume</button>
+        </div>
+      )}
+      {!loading && history.length > 0 && (
+        <div className="hlist">
+          {history.map((item, i) => (
+            <div className="hcard" key={item._id} style={{animationDelay:`${i*.05}s`}}>
+              <div className="hscore" style={{color:sc(item.matchScore)}}>{item.matchScore}%</div>
+              <div className="hinfo">
+                <div className="hjob">{item.jobTitle || "Untitled Job"}</div>
+                <div className="hdate">{fd(item.createdAt)}</div>
+                <div className="hmiss">Missing: {item.missingSkills?.slice(0,4).join(", ") || "—"}</div>
+              </div>
+              <div className="hacts">
+                <button className="btn btn-o" style={{padding:".38rem .85rem",fontSize:".79rem"}}
+                  onClick={() => { setResult(item); go("results"); }}>View →</button>
+                <button className="btn btn-d" style={{padding:".38rem .72rem",fontSize:".79rem"}}
+                  onClick={() => del(item._id)}>✕</button>
+              </div>
             </div>
-            <div className="h-actions">
-              <button className="btn btn-g" style={{padding:".4rem .9rem",fontSize:".82rem"}} onClick={() => go("results")}>View →</button>
-              <button className="btn btn-d" style={{padding:".4rem .75rem",fontSize:".82rem"}}>✕</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <Footer/>
     </main>
   );
 }
 
-// ── Root ─────────────────────────────────────────────────────────────────────
-
+/* ─────────────────────────────────────────────────────────────
+   ROOT  — theme applied to document.body so the ENTIRE page
+           (including html background) responds to light/dark
+───────────────────────────────────────────────────────────── */
 export default function App() {
-  const [page, setPage]     = useState("landing");
+  const [page,   setPage]   = useState("landing");
   const [result, setResult] = useState(null);
-  const go = p => setPage(p);
+  const [theme,  setTheme]  = useState(() => localStorage.getItem("sg_theme") || "dark");
+
+  /* Inject CSS into <head> once — this makes body[data-theme] selectors work */
+  useEffect(() => {
+    const el = document.createElement("style");
+    el.id = "sg-styles";
+    el.textContent = CSS;
+    document.head.appendChild(el);
+    return () => el.remove();
+  }, []);
+
+  /* Apply theme on body — covers 100% of the viewport background */
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("sg_theme", theme);
+  }, [theme]);
+
+  const go = p => { setPage(p); window.scrollTo({top:0,behavior:"smooth"}); };
+  const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
+
   return (
     <AppCtx.Provider value={{ go, result, setResult }}>
-      <style>{styles}</style>
+      {/* Full-page background layer (fixed, behind everything) */}
+      <div className="bg-fixed">
+        <div className="blob blob1"/>
+        <div className="blob blob2"/>
+        <div className="blob blob3"/>
+      </div>
+      <div className="bg-grid"/>
+
+      {/* ── NAVBAR ── */}
       <nav className="nav">
-        <div className="nav-brand" onClick={() => go("landing")}>⚡ SkillGap</div>
-        <div className="nav-links">
-          <button className={`nav-btn ${page==="analyze"?"active":""}`} onClick={() => go("analyze")}>Analyze</button>
-          <button className={`nav-btn ${page==="history"?"active":""}`} onClick={() => go("history")}>History</button>
-          <button className="nav-cta" onClick={() => go("analyze")}>Try Free</button>
+        <div className="nbrand" onClick={() => go("landing")}>
+          <div className="nlogo">⚡</div>
+          <span className="nword">Skill<em>Gap</em></span>
+        </div>
+        <div className="nright">
+          <div className="nlinks">
+            <button className={`nbtn${page==="analyze"?" on":""}`} onClick={() => go("analyze")}>Analyze</button>
+            <button className={`nbtn${page==="history"?" on":""}`} onClick={() => go("history")}>History</button>
+          </div>
+
+          {/* THEME TOGGLE */}
+          <button className="tog" onClick={toggleTheme} title="Toggle light / dark mode">
+            <div className="togknob">{theme==="dark"?"🌙":"☀️"}</div>
+          </button>
+
+          <button className="ncta" onClick={() => go("analyze")}>Try Free →</button>
         </div>
       </nav>
+
       {page==="landing" && <LandingPage/>}
       {page==="analyze" && <AnalyzePage/>}
       {page==="results" && <ResultsPage/>}
