@@ -33,4 +33,6 @@ const analysisSchema = new mongoose.Schema({
 // Index for fast history queries
 analysisSchema.index({ sessionId: 1, createdAt: -1 });
 
-export default mongoose.model("Analysis", analysisSchema);
+const Analysis = mongoose.model("Analysis", analysisSchema);
+
+export default Analysis;  

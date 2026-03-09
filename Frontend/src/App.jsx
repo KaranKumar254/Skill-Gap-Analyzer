@@ -852,7 +852,7 @@ function LandingPage() {
             </div>
             <div className="mockbody">
               <div className="msrow">
-                <div><div className="mnum">73%</div><div className="mlbl">Match Score</div></div>
+                <div><div className="mnum">85%</div><div className="mlbl">Match Score</div></div>
                 <div className="mbars">
                   {[["React",92],["Node.js",84],["MongoDB",70],["Docker",28]].map(([s,v]) => (
                     <div className="mbr" key={s}>

@@ -6,7 +6,7 @@ import "express-async-errors";
 import express       from "express";
 import cors          from "cors";
 import connectDB     from "./config/db.js";
-import analyzeRoutes from "./routes/analyze.js";
+import analyzeRoutes from "./routes/Analyze.js";
 import errorHandler  from "./middleware/errorHandler.js";
 
 console.log("🔑 Groq Key loaded:", process.env.GROQ_API_KEY ? "YES ✅" : "NO ❌");
