@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://skill-gap-analyzer-backend-3joo.onrender.com/",
+        target: "https://skill-gap-analyzer-backend-3joo.onrender.com",
         changeOrigin: true,
         secure: false,
       },
