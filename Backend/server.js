@@ -25,8 +25,11 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/api", analyzeRoutes);
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "SkillGap API is running 🚀" });
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "SkillGap Backend Running 🚀"
+  });
 });
 
 app.use((req, res) => {
