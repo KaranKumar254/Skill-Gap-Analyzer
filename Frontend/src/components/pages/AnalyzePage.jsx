@@ -387,33 +387,82 @@ function LandingPage() {
 
 function AnalyzePage() {
   const { go, setResult } = useApp();
+
+  const API_URL = "https://skill-gap-analyzer-backend-3joo.onrender.com/api";
+
   const [resumeText, setResumeText] = useState("");
-  const [jdText, setJdText]         = useState("");
+  const [jdText, setJdText] = useState("");
   const [resumeFile, setResumeFile] = useState(null);
-  const [jdFile, setJdFile]         = useState(null);
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState("");
+  const [jdFile, setJdFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleAnalyze = async () => {
-    if (!resumeFile && resumeText.trim().length < 50) { setError("Please paste your resume or upload a file."); return; }
-    if (!jdFile    && jdText.trim().length < 30)      { setError("Please paste the job description or upload a file."); return; }
-    setError(""); setLoading(true);
+    if (!resumeFile && resumeText.trim().length < 50) {
+      setError("Please paste your resume or upload a file.");
+      return;
+    }
+
+    if (!jdFile && jdText.trim().length < 30) {
+      setError("Please paste the job description or upload a file.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
     try {
       let res, data;
+
       if (resumeFile || jdFile) {
         const fd = new FormData();
-        if (resumeFile) fd.append("resumeFile", resumeFile); else fd.append("resumeText", resumeText);
-        if (jdFile)     fd.append("jdFile", jdFile);         else fd.append("jobDescription", jdText);
-        res  = await fetch("/api/analyze", { method:"POST", body: fd });
+
+        if (resumeFile) {
+          fd.append("resumeFile", resumeFile);
+        } else {
+          fd.append("resumeText", resumeText);
+        }
+
+        if (jdFile) {
+          fd.append("jdFile", jdFile);
+        } else {
+          fd.append("jobDescription", jdText);
+        }
+
+        res = await fetch(`${API_URL}/analyze`, {
+          method: "POST",
+          body: fd
+        });
+
       } else {
-        res  = await fetch("/api/analyze", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ resumeText, jobDescription: jdText }) });
+
+        res = await fetch(`${API_URL}/analyze`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            resumeText: resumeText,
+            jobDescription: jdText
+          })
+        });
+
       }
+
       data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Server error");
-      setResult(data); go("results");
-    } catch(e) {
+
+      if (!res.ok) {
+        throw new Error(data.message || "Server error");
+      }
+
+      setResult(data);
+      go("results");
+
+    } catch (e) {
       setError(e.message || "Something went wrong. Please try again.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -422,21 +471,57 @@ function AnalyzePage() {
         <h1>Analyze Your Resume</h1>
         <p>Paste text, upload a PDF, or take a photo — then hit Analyze</p>
       </div>
+
       {error && <div className="error-bar">{error}</div>}
+
       <div className="input-grid">
-        <InputPanel label="Your Resume"      icon="📄" text={resumeText} setText={setResumeText} file={resumeFile} setFile={setResumeFile}/>
+        <InputPanel
+          label="Your Resume"
+          icon="📄"
+          text={resumeText}
+          setText={setResumeText}
+          file={resumeFile}
+          setFile={setResumeFile}
+        />
+
         <div className="vs-col">
-          <div className="vs-line"/><span className="vs-text">VS</span><div className="vs-line"/>
+          <div className="vs-line" />
+          <span className="vs-text">VS</span>
+          <div className="vs-line" />
         </div>
-        <InputPanel label="Job Description"  icon="💼" text={jdText}    setText={setJdText}    file={jdFile}    setFile={setJdFile}/>
+
+        <InputPanel
+          label="Job Description"
+          icon="💼"
+          text={jdText}
+          setText={setJdText}
+          file={jdFile}
+          setFile={setJdFile}
+        />
       </div>
+
       <div className="analyze-foot">
-        <button className="btn btn-y" style={{padding:"1rem 2.5rem",fontSize:"1rem"}} onClick={handleAnalyze} disabled={loading}>
-          {loading ? <><span className="spin"/> Analyzing…</> : "⚡ Analyze My Gaps"}
+        <button
+          className="btn btn-y"
+          style={{ padding: "1rem 2.5rem", fontSize: "1rem" }}
+          onClick={handleAnalyze}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spin" /> Analyzing…
+            </>
+          ) : (
+            "⚡ Analyze My Gaps"
+          )}
         </button>
-        <span className="analyze-note">Takes ~10 seconds · Powered by Claude AI</span>
+
+        <span className="analyze-note">
+          Takes ~10 seconds · Powered by Claude AI
+        </span>
       </div>
-      <Footer/>
+
+      <Footer />
     </main>
   );
 }
