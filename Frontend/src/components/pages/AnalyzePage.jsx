@@ -388,7 +388,7 @@ function LandingPage() {
 function AnalyzePage() {
   const { go, setResult } = useApp();
 
-  const API_URL = "https://skill-gap-analyzer-backend-3joo.onrender.com/api";
+  const API_URL = "https://skill-gap-analyzer-backend-3joo.onrender.com";
 
   const [resumeText, setResumeText] = useState("");
   const [jdText, setJdText] = useState("");
