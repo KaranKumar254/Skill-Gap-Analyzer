@@ -1085,7 +1085,8 @@ function HistoryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch(`/api/history?sessionId=${getSessionId()}`);
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const r = await fetch(`${API_URL}/api/history?sessionId=${getSessionId()}`);
         setHistory(await r.json());
       } catch { setError("Could not load history."); }
       finally  { setLoading(false); }
@@ -1093,8 +1094,11 @@ function HistoryPage() {
   }, []);
 
   const del = async id => {
-    try { await fetch(`/api/history/${id}`, {method:"DELETE"}); setHistory(p => p.filter(h => h._id !== id)); }
-    catch { setError("Could not delete."); }
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || "";
+      await fetch(`${API_URL}/api/history/${id}`, { method: "DELETE" });
+      setHistory(p => p.filter(h => h._id !== id));
+    } catch { setError("Could not delete."); }
   };
 
   const sc = s => s>=80?"var(--grn)":s>=55?"var(--ylw)":"var(--red)";
