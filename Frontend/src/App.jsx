@@ -937,9 +937,18 @@ function AnalyzePage() {
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState("");
 
+  // ✅ Ye line add karo — env variable se URL lega
+  const API_URL = import.meta.env.VITE_API_URL || "";
+
   const run = async () => {
-    if (!resumeFile && resumeText.trim().length < 50) { setError("Please paste your resume (min 50 chars) or upload a file."); return; }
-    if (!jdFile    && jdText.trim().length    < 30)  { setError("Please paste the job description or upload a file."); return; }
+    if (!resumeFile && resumeText.trim().length < 50) {
+      setError("Please paste your resume (min 50 chars) or upload a file.");
+      return;
+    }
+    if (!jdFile && jdText.trim().length < 30) {
+      setError("Please paste the job description or upload a file.");
+      return;
+    }
     setError(""); setLoading(true);
     try {
       const sid = getSessionId();
@@ -949,21 +958,25 @@ function AnalyzePage() {
         resumeFile ? fd.append("resumeFile", resumeFile) : fd.append("resumeText", resumeText);
         jdFile     ? fd.append("jdFile", jdFile)         : fd.append("jobDescription", jdText);
         fd.append("sessionId", sid);
-        res = await fetch("/api/analyze", { method:"POST", body:fd });
+        res = await fetch(`${API_URL}/api/analyze`, { method: "POST", body: fd });
       } else {
-        res = await fetch("/api/analyze", {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({ resumeText, jobDescription:jdText, sessionId:sid })
+        res = await fetch(`${API_URL}/api/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeText, jobDescription: jdText, sessionId: sid })
         });
       }
       const txt = await res.text();
       if (!txt?.trim()) throw new Error("Backend returned empty response — check your terminal.");
       let data;
-      try { data = JSON.parse(txt); } catch { throw new Error("Backend error: " + txt.slice(0,200)); }
+      try { data = JSON.parse(txt); } catch { throw new Error("Backend error: " + txt.slice(0, 200)); }
       if (!res.ok) throw new Error(data.message || "Server error");
       setResult(data); go("results");
-    } catch(e) { setError(e.message || "Something went wrong. Please try again."); }
-    finally    { setLoading(false); }
+    } catch(e) {
+      setError(e.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
