@@ -958,13 +958,13 @@ function AnalyzePage() {
         resumeFile ? fd.append("resumeFile", resumeFile) : fd.append("resumeText", resumeText);
         jdFile     ? fd.append("jdFile", jdFile)         : fd.append("jobDescription", jdText);
         fd.append("sessionId", sid);
-        res = await fetch(`${API_URL}/api/analyze`, { method: "POST", body: fd });
+        res = await fetch(`${API_URL}/analyze`, { method: "POST", body: fd });
       } else {
-        res = await fetch(`${API_URL}/api/analyze`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resumeText, jobDescription: jdText, sessionId: sid })
-        });
+        res = await fetch(`${API_URL}/analyze`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ resumeText, jobDescription: jdText, sessionId: sid })
+});
       }
       const txt = await res.text();
       if (!txt?.trim()) throw new Error("Backend returned empty response — check your terminal.");
@@ -1086,7 +1086,7 @@ function HistoryPage() {
     (async () => {
       try {
         const API_URL = import.meta.env.VITE_API_URL || "";
-        const r = await fetch(`${API_URL}/api/history?sessionId=${getSessionId()}`);
+        const r = await fetch(`${API_URL}/history?sessionId=${getSessionId()}`);
         setHistory(await r.json());
       } catch { setError("Could not load history."); }
       finally  { setLoading(false); }
@@ -1096,7 +1096,7 @@ function HistoryPage() {
   const del = async id => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || "";
-      await fetch(`${API_URL}/api/history/${id}`, { method: "DELETE" });
+      await fetch(`${API_URL}/history/${id}`, { method: "DELETE" });
       setHistory(p => p.filter(h => h._id !== id));
     } catch { setError("Could not delete."); }
   };
